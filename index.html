@@ -1,0 +1,1422 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>馬場造園家体験ゲーム</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 12px; background: #14161c; color: #d9d9d0;
+    font-family: 'Consolas','Courier New',monospace; font-size: 13px;
+    display: flex; justify-content: center;
+  }
+  #wrap { width: 100%; max-width: 960px; }
+  h1 { font-size: 16px; margin: 0 0 8px 0; color: #f0c04a; letter-spacing: 1px; }
+  .panel { background: #23262e; border: 1px solid #3a3d46; border-radius: 4px; padding: 8px; margin-bottom: 8px; }
+  #topbar { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; justify-content: space-between; }
+  #topbar .item { display: flex; flex-direction: column; gap: 2px; }
+  #topbar .label { color: #8a8d97; font-size: 11px; }
+  #topbar .value { color: #9fe1cb; font-weight: bold; }
+  #forecast { display: flex; gap: 6px; }
+  .fday { text-align: center; padding: 2px 4px; border-radius: 3px; min-width: 30px; }
+  .fday.weekend { background: #33303a; }
+  .fday .dname { font-size: 10px; color: #8a8d97; }
+  .fday .icon { font-size: 16px; }
+  #main { display: flex; flex-wrap: wrap; gap: 10px; }
+  #left { flex: 1 1 320px; min-width: 0; }
+  #right { flex: 1 1 240px; max-width: 100%; }
+  @media (min-width: 720px) { #right { flex: 0 0 260px; } }
+  canvas#course { image-rendering: pixelated; image-rendering: crisp-edges; width: 100%; max-width: 640px; height: auto; background: #20261e; border: 1px solid #3a3d46; display: block; cursor: pointer; }
+  canvas#elev { image-rendering: pixelated; width: 100%; max-width: 640px; height: 72px; background: #1a1d24; border: 1px solid #3a3d46; display: block; margin-top: 4px; }
+  .barlabel { display: flex; justify-content: space-between; font-size: 11px; margin-top: 4px; }
+  .bar-outer { background: #14161c; border: 1px solid #3a3d46; height: 8px; border-radius: 3px; overflow: hidden; }
+  .bar-inner { height: 100%; background: #9fe1cb; }
+  .bar-inner.warn { background: #f0c04a; }
+  .bar-inner.bad { background: #d16a5a; }
+  .stat-row { margin-bottom: 6px; }
+  .stat-title { font-size: 11px; color: #8a8d97; margin-bottom: 2px; }
+  .stat-val { font-size: 12px; color: #d9d9d0; }
+  .minibar-row { display: flex; align-items: center; gap: 4px; font-size: 10px; margin-bottom: 2px; }
+  .minibar-row .lname { width: 24px; color: #8a8d97; }
+  .minibar-row.protected { opacity: 0.45; }
+  .minibar-track { flex: 1; height: 6px; background: #14161c; border-radius: 2px; overflow: hidden; }
+  .minibar-fill { height: 100%; }
+  select, button { font-family: inherit; font-size: 12px; background: #2c2f39; color: #d9d9d0; border: 1px solid #4a4d57; border-radius: 3px; padding: 4px 6px; cursor: pointer; }
+  select:hover, button:hover:not(:disabled) { border-color: #9fe1cb; }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  #actions { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+  #actions button { flex: 1 1 auto; min-width: 110px; }
+  #advanceBtn { background: #33613f; color: #eafff0; font-weight: bold; }
+  #btnRail { background: #3a3d5a; }
+  #zoneInfo { font-size: 11px; line-height: 1.5; }
+  #log { background: #14161c; border: 1px solid #3a3d46; border-radius: 4px; padding: 6px 8px; height: 150px; overflow-y: auto; font-size: 11px; line-height: 1.6; }
+  #log div { border-bottom: 1px dashed #2a2d35; padding: 2px 0; }
+  #log div.crit { color: #f0c04a; font-weight: bold; }
+  #log div.fail { color: #8a8d97; font-style: italic; }
+  #previewPanel { font-size: 11px; line-height: 1.5; min-height: 2.6em; }
+  #previewText { color: #d9d9d0; }
+  #previewNote { color: #8a8d97; font-size: 10px; margin-top: 2px; }
+  #zoneSelectRow { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
+  .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 10; }
+  .modal { background: #23262e; border: 2px solid #f0c04a; border-radius: 6px; padding: 20px; width: 380px; max-width: 90%; }
+  .modal h2 { margin-top: 0; color: #f0c04a; }
+  .modal .grade { font-size: 40px; text-align: center; color: #9fe1cb; margin: 10px 0; }
+  .modal .choices { display: flex; gap: 8px; margin-top: 12px; }
+  .modal .choices button { flex: 1 1 auto; }
+  .hidden { display: none; }
+  #staffPanel .staffRow { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 4px 0; border-bottom: 1px dashed #2a2d35; font-size: 11px; }
+  #staffPanel .staffRow:last-child { border-bottom: none; }
+  #staffPanel .staffName { color: #d9d9d0; font-weight: bold; }
+  #staffPanel .staffDesc { color: #8a8d97; font-size: 10px; }
+  #staffPanel .staffWage { color: #f0c04a; font-size: 10px; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <h1>馬場造園家体験ゲーム 〜東京競馬場〜</h1>
+
+  <div class="panel" id="topbar">
+    <div class="item">
+      <div class="label">開催週</div>
+      <div class="value" id="weekLabel">-</div>
+    </div>
+    <div class="item">
+      <div class="label">使用コース</div>
+      <div class="value" id="courseVal">-</div>
+    </div>
+    <div class="item">
+      <div class="label">天気予報(月〜日)</div>
+      <div id="forecast"></div>
+    </div>
+    <div class="item">
+      <div class="label">予算</div>
+      <div class="value" id="budgetVal">-</div>
+    </div>
+    <div class="item">
+      <div class="label">作業P</div>
+      <div class="value" id="apVal">-</div>
+    </div>
+  </div>
+
+  <div id="main">
+    <div id="left">
+      <canvas id="course" width="640" height="360"></canvas>
+      <canvas id="elev" width="640" height="72"></canvas>
+      <div class="panel" id="zoneSelectRow">
+        <span class="label">ゾーン選択:</span>
+        <select id="zoneSelect"></select>
+      </div>
+      <div class="panel" id="zoneInfo">ゾーンを選択してください。</div>
+    </div>
+    <div id="right">
+      <div class="panel">
+        <div class="stat-title">馬場データ</div>
+        <div class="stat-row">
+          <div class="stat-title">クッション値 <span id="cushionJudge"></span></div>
+          <div class="stat-val" id="cushionVal">-</div>
+        </div>
+        <div class="stat-row">
+          <div class="stat-title">含水率</div>
+          <div class="bar-outer"><div class="bar-inner" id="moistBar"></div></div>
+          <div class="stat-val" id="moistVal">-</div>
+        </div>
+        <div class="stat-row">
+          <div class="stat-title">芝丈</div>
+          <div class="stat-val" id="grassVal">-</div>
+        </div>
+        <div class="stat-row">
+          <div class="stat-title">根の健康</div>
+          <div class="bar-outer"><div class="bar-inner" id="rootBar"></div></div>
+          <div class="stat-val" id="rootVal">-</div>
+        </div>
+        <div class="stat-row">
+          <div class="stat-title">レーン別平均傷み</div>
+          <div class="minibar-row" id="laneInnerRow"><span class="lname">内</span><div class="minibar-track"><div class="minibar-fill" id="laneInnerBar"></div></div></div>
+          <div class="minibar-row" id="laneMidRow"><span class="lname">中</span><div class="minibar-track"><div class="minibar-fill" id="laneMidBar"></div></div></div>
+          <div class="minibar-row" id="laneOuterRow"><span class="lname">外</span><div class="minibar-track"><div class="minibar-fill" id="laneOuterBar"></div></div></div>
+        </div>
+        <div class="stat-row">
+          <div class="stat-title">ダート</div>
+          <div class="stat-val" id="dartVal">-</div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="stat-title">評価</div>
+        <div class="stat-row">
+          <div class="barlabel"><span>安全</span><span id="safetyNum"></span></div>
+          <div class="bar-outer"><div class="bar-inner" id="safetyBar"></div></div>
+        </div>
+        <div class="stat-row">
+          <div class="barlabel"><span>公平</span><span id="fairNum"></span></div>
+          <div class="bar-outer"><div class="bar-inner" id="fairBar"></div></div>
+        </div>
+        <div class="stat-row">
+          <div class="barlabel"><span>時計</span><span id="clockNum"></span></div>
+          <div class="bar-outer"><div class="bar-inner" id="clockBar"></div></div>
+        </div>
+        <div class="stat-row">
+          <div class="barlabel"><span>評判</span><span id="repNum"></span></div>
+          <div class="bar-outer"><div class="bar-inner" id="repBar"></div></div>
+        </div>
+      </div>
+      <div class="panel" id="staffPanel">
+        <div class="stat-title">スタッフ雇用 (最大2名)</div>
+        <div id="staffList"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div id="actions">
+      <button id="btnWater">散水</button>
+      <button id="btnMow">芝刈り</button>
+      <button id="btnAerate">エアレーション</button>
+      <button id="btnFert">肥料</button>
+      <button id="btnRepair">目土・補修</button>
+      <button id="btnHarrow">ハロー掛け</button>
+      <button id="btnSand">砂補充</button>
+      <button id="btnRail">内柵移動</button>
+      <button id="advanceBtn">開催週末へ→</button>
+    </div>
+    <div class="panel" id="previewPanel">
+      <div id="previewText">作業にカーソルを合わせると効果を表示</div>
+      <div id="previewNote">失敗5%(効果0.5倍)／成功75%／大成功20%(効果1.5倍、スタッフでさらに上昇の場合あり)</div>
+    </div>
+    <div id="log"></div>
+  </div>
+</div>
+
+<div id="modalLayer"></div>
+
+<script>
+(function(){
+"use strict";
+
+/* ===================== 定数・コース生成 ===================== */
+
+var CP = [
+  [230,138],[258,134],[280,112],[284,84],[272,58],[244,44],[200,40],[150,40],
+  [105,44],[70,56],[52,84],[58,112],[82,132],[130,140],[175,140]
+];
+var ELEV = [26,25,23,21,19,17,15,12,9,6,3,1,0,2,22]; // 0.1m単位
+var CENTER = {x:160,y:90};
+
+var ZONE_DEFS = [
+  {name:'1コーナー', edges:[0,1]},
+  {name:'2コーナー', edges:[2,3,4]},
+  {name:'向正面', edges:[5,6,7]},
+  {name:'3コーナー', edges:[8,9]},
+  {name:'4コーナー', edges:[10,11]},
+  {name:'直線入口', edges:[12]},
+  {name:'直線の坂', edges:[13]},
+  {name:'ゴール前', edges:[14]}
+];
+
+var LANE_NAMES = ['inner','mid','outer'];
+var LANE_LABEL = {inner:'内', mid:'中', outer:'外'};
+var LANE_BOUNDS = { inner:[2.7,8], mid:[-2.7,2.7], outer:[-8,-2.7] };
+
+function crPoint(p0,p1,p2,p3,t){
+  var t2=t*t, t3=t2*t;
+  var x = 0.5*((2*p1[0]) + (-p0[0]+p2[0])*t + (2*p0[0]-5*p1[0]+4*p2[0]-p3[0])*t2 + (-p0[0]+3*p1[0]-3*p2[0]+p3[0])*t3);
+  var y = 0.5*((2*p1[1]) + (-p0[1]+p2[1])*t + (2*p0[1]-5*p1[1]+4*p2[1]-p3[1])*t2 + (-p0[1]+3*p1[1]-3*p2[1]+p3[1])*t3);
+  return [x,y];
+}
+
+function lerp(a,b,t){ return a+(b-a)*t; }
+
+// サンプル点生成: 45点、各エッジ(15本)を3分割
+var samplePoints = []; // {x,y,edge,t,elev,zoneIndex}
+for (var i=0;i<15;i++){
+  var p0 = CP[(i-1+15)%15], p1 = CP[i], p2 = CP[(i+1)%15], p3 = CP[(i+2)%15];
+  var e0 = ELEV[i], e1 = ELEV[(i+1)%15];
+  for (var s=0;s<3;s++){
+    var t = s/3;
+    var pt = crPoint(p0,p1,p2,p3,t);
+    samplePoints.push({ x: pt[0], y: pt[1], edge:i, t:t, elev: lerp(e0,e1,t) });
+  }
+}
+var NSEG = samplePoints.length; // 45
+
+// ゾーンインデックスをエッジから割当
+var edgeToZone = {};
+ZONE_DEFS.forEach(function(z, zi){ z.edges.forEach(function(e){ edgeToZone[e]=zi; }); });
+samplePoints.forEach(function(sp){ sp.zoneIndex = edgeToZone[sp.edge]; });
+
+// 法線計算(内側=中心方向 を正)
+function dist(ax,ay,bx,by){ var dx=ax-bx, dy=ay-by; return Math.sqrt(dx*dx+dy*dy); }
+samplePoints.forEach(function(sp,i){
+  var prev = samplePoints[(i-1+NSEG)%NSEG];
+  var next = samplePoints[(i+1)%NSEG];
+  var dx = next.x-prev.x, dy = next.y-prev.y;
+  var len = Math.sqrt(dx*dx+dy*dy) || 1;
+  var tx = dx/len, ty = dy/len;
+  var nx = -ty, ny = tx;
+  var d1 = dist(sp.x+nx*3, sp.y+ny*3, CENTER.x, CENTER.y);
+  var d0 = dist(sp.x, sp.y, CENTER.x, CENTER.y);
+  if (d1 > d0) { nx = -nx; ny = -ny; }
+  sp.nx = nx; sp.ny = ny;
+  sp.tx = tx; sp.ty = ty;
+});
+
+// コーナー係数(方向転換角の大きさを正規化)
+samplePoints.forEach(function(sp,i){
+  var prev = samplePoints[(i-1+NSEG)%NSEG];
+  var next = samplePoints[(i+1)%NSEG];
+  var a1 = Math.atan2(sp.y-prev.y, sp.x-prev.x);
+  var a2 = Math.atan2(next.y-sp.y, next.x-sp.x);
+  var diff = Math.atan2(Math.sin(a2-a1), Math.cos(a2-a1));
+  sp.cornerFactor = Math.min(1, Math.abs(diff) / (Math.PI/9)); // 20度で1.0
+});
+
+// 標高差(登り勾配)
+samplePoints.forEach(function(sp,i){
+  var next = samplePoints[(i+1)%NSEG];
+  sp.climbDz = Math.max(0, next.elev - sp.elev);
+});
+
+// セル(135)生成: 芝
+var cells = [];
+for (var seg=0; seg<NSEG; seg++){
+  var p0 = samplePoints[seg];
+  var p1 = samplePoints[(seg+1)%NSEG];
+  for (var li=0; li<LANE_NAMES.length; li++){
+    var lane = LANE_NAMES[li];
+    var b = LANE_BOUNDS[lane];
+    var poly = [
+      [p0.x + p0.nx*b[0], p0.y + p0.ny*b[0]],
+      [p0.x + p0.nx*b[1], p0.y + p0.ny*b[1]],
+      [p1.x + p1.nx*b[1], p1.y + p1.ny*b[1]],
+      [p1.x + p1.nx*b[0], p1.y + p1.ny*b[0]]
+    ];
+    cells.push({
+      seg: seg, lane: lane, zoneIndex: p0.zoneIndex,
+      poly: poly,
+      dmg: Math.random()*8
+    });
+  }
+}
+
+function cellAt(seg, lane){
+  return cells[seg*3 + LANE_NAMES.indexOf(lane)];
+}
+
+// ダートコース(芝中心線を内側に11pxオフセット、半幅4px)
+var DART_OFFSET = 11, DART_HALFW = 4;
+var DART_BOUNDS = [DART_OFFSET-DART_HALFW, DART_OFFSET+DART_HALFW];
+var dartCells = [];
+for (var dseg=0; dseg<NSEG; dseg++){
+  var dp0 = samplePoints[dseg];
+  var dp1 = samplePoints[(dseg+1)%NSEG];
+  var dpoly = [
+    [dp0.x + dp0.nx*DART_BOUNDS[0], dp0.y + dp0.ny*DART_BOUNDS[0]],
+    [dp0.x + dp0.nx*DART_BOUNDS[1], dp0.y + dp0.ny*DART_BOUNDS[1]],
+    [dp1.x + dp1.nx*DART_BOUNDS[1], dp1.y + dp1.ny*DART_BOUNDS[1]],
+    [dp1.x + dp1.nx*DART_BOUNDS[0], dp1.y + dp1.ny*DART_BOUNDS[0]]
+  ];
+  dartCells.push({ seg: dseg, poly: dpoly, dmg: Math.random()*8 });
+}
+function dartCellAt(seg){ return dartCells[seg]; }
+
+// ゾーンごとのセグメント範囲
+ZONE_DEFS.forEach(function(z){
+  z.segs = [];
+});
+for (var seg2=0; seg2<NSEG; seg2++){
+  ZONE_DEFS[samplePoints[seg2].zoneIndex].segs.push(seg2);
+}
+
+// 内馬場ポリゴン(ダートのさらに内側、offset16)
+var infieldPoly = samplePoints.map(function(sp){ return [sp.x+sp.nx*16, sp.y+sp.ny*16]; });
+
+/* ===================== ゲーム状態 ===================== */
+
+var TOTAL_WEEKS = 8;
+var G1_WEEKS = [3,5,8];
+var WEEK_LABELS = {
+  1:'開幕週', 2:'青葉賞週', 3:'オークス週(G1)', 4:'通常週',
+  5:'日本ダービー週(G1)', 6:'通常週', 7:'エプソムC週', 8:'安田記念週(G1)'
+};
+var WEATHER_CATS = ['sun','cloud','rain','storm'];
+var WEATHER_ICON = { sun:'☀', cloud:'☁', rain:'☂', storm:'⛈' };
+var WEATHER_PROB = [0.45,0.30,0.20,0.05];
+var DAY_NAMES = ['月','火','水','木','金','土','日'];
+
+function isG1Week(){ return G1_WEEKS.indexOf(state.week) >= 0; }
+
+// 作業アクション定義（ボタン表記・効果プレビュー・実処理が全て参照する単一の定義）
+var ACTIONS = {
+  water:    { key:'water',    label:'散水',       p:2, cost:8,  moistAmt:12, cushionAmt:0.1 },
+  mow:      { key:'mow',      label:'芝刈り',     p:2, cost:4,  grassAmt:2.0 },
+  aerate:   { key:'aerate',   label:'エアレーション', p:3, cost:20, cushionAmt:0.5, rootAmt:4, dmgSideAmt:2 },
+  fert:     { key:'fert',     label:'肥料',       p:2, cost:10, rootAmt:8, grassAmt:1.0 },
+  repair:   { key:'repair',   label:'目土・補修', p:2, cost:15, dmgAmt:35, rootAmt:2 },
+  harrow:   { key:'harrow',   label:'ハロー掛け', p:2, cost:6,  dartDmgAmt:30, sandAmt:0.2 },
+  sandfill: { key:'sandfill', label:'砂補充',     p:2, cost:12, sandAmt:0.6 },
+  rail:     { key:'rail',     label:'内柵移動',   p:3, cost:20 }
+};
+
+var STAFF_DEFS = {
+  water: { key:'water', name:'散水名人・雨宮', wage:6, desc:'散水・ハロー掛けの効果+30%、それらの大成功率+10%' },
+  turf:  { key:'turf',  name:'芝博士・緑川',   wage:7, desc:'毎週 根+3、肥料・目土補修の効果+30%' },
+  vet:   { key:'vet',   name:'ベテラン職人・土屋', wage:8, desc:'毎週の作業Pが+2' }
+};
+
+var EVENT_LABELS = {
+  typhoon: '台風接近', heatwave: '猛暑', media: 'メディア取材',
+  pricehike: '資材高騰', inspection: 'JRA査察', goodweather: '好天続き'
+};
+
+function staffEffectMult(actionKey){
+  var m = 1;
+  if ((actionKey==='water'||actionKey==='harrow') && state.staff.water) m *= 1.3;
+  if ((actionKey==='fert'||actionKey==='repair') && state.staff.turf) m *= 1.3;
+  return m;
+}
+function staffCritBonus(actionKey){
+  if ((actionKey==='water'||actionKey==='harrow') && state.staff.water) return 0.10;
+  return 0;
+}
+
+function previewText(key){
+  var a = ACTIONS[key];
+  var mult = staffEffectMult(key);
+  var tag = mult>1 ? ' [スタッフ補正+30%]' : '';
+  switch(key){
+    case 'water':    return '散水: 含水率+' + (a.moistAmt*mult).toFixed(1) + '（クッション値もわずかに上昇）' + tag;
+    case 'mow':      return '芝刈り: 芝丈-' + a.grassAmt.toFixed(1) + 'cm（時計が出やすくなるが根に負担）';
+    case 'aerate':   return 'エアレーション: クッション値+' + a.cushionAmt.toFixed(1) + '・根の健康+' + a.rootAmt + '・全セル傷み+' + a.dmgSideAmt;
+    case 'fert':     return '肥料: 根の健康+' + (a.rootAmt*mult).toFixed(1) + '・芝丈+' + (a.grassAmt*mult).toFixed(1) + 'cm' + tag;
+    case 'repair':   return '目土・補修: 選択ゾーンの全セル傷み-' + (a.dmgAmt*mult).toFixed(1) + '・根+' + a.rootAmt + tag;
+    case 'harrow':   return 'ハロー掛け: ダート全セル傷み-' + (a.dartDmgAmt*mult).toFixed(0) + '・砂厚+' + (a.sandAmt*mult).toFixed(1) + tag;
+    case 'sandfill': return '砂補充: 砂厚+' + a.sandAmt.toFixed(1);
+    case 'rail':     return '内柵移動: 保護レーンを切り替える（戻せません）';
+  }
+  return '';
+}
+
+var state = null;
+
+function newGame(){
+  state = {
+    week: 1,
+    course: 'A',
+    budget: 240,
+    ap: 8,
+    moist: 45,
+    grass: 14,
+    root: 85,
+    cushion: 9.6,
+    sand: 9.0,
+    safety: 100,
+    selectedZone: 0,
+    forecast: [],
+    log: [],
+    clockScores: [],
+    fairScores: [],
+    breakdownCount: 0,
+    staff: { water:false, turf:false, vet:false },
+    repBonus: 0,
+    dartWaterFlag: false,
+    weekCostMult: 1,
+    heatwaveActive: false,
+    heatwaveNightWater: false,
+    inspectionPending: false,
+    activeEvent: null
+  };
+  cells.forEach(function(c){ c.dmg = Math.random()*8; });
+  dartCells.forEach(function(c){ c.dmg = Math.random()*8; });
+  genForecast();
+  addLog('東京競馬場 馬場造園課へようこそ。週' + state.week + '(' + WEEK_LABELS[state.week] + ')が始まります。');
+  maybeTriggerEvent();
+  render();
+}
+
+function pickWeighted(){
+  var r = Math.random(), acc = 0;
+  for (var i=0;i<WEATHER_CATS.length;i++){
+    acc += WEATHER_PROB[i];
+    if (r <= acc) return i;
+  }
+  return WEATHER_CATS.length-1;
+}
+
+function genForecast(){
+  state.forecast = [];
+  for (var d=0; d<7; d++){
+    var fIdx = pickWeighted();
+    var aIdx = fIdx;
+    if (Math.random() < 0.2){
+      var dir = Math.random()<0.5 ? -1 : 1;
+      aIdx = Math.min(WEATHER_CATS.length-1, Math.max(0, fIdx+dir));
+    }
+    state.forecast.push({ forecast: WEATHER_CATS[fIdx], actual: WEATHER_CATS[aIdx] });
+  }
+}
+
+function addLog(msg, cls){
+  var c = cls === true ? 'crit' : (cls || null);
+  state.log.unshift({ msg: msg, cls: c });
+  if (state.log.length > 50) state.log.length = 50;
+}
+
+/* ===================== コース(内柵)・レーン使用状況 ===================== */
+
+function usedLanes(course){
+  if (course==='A') return ['inner','mid','outer'];
+  if (course==='B') return ['mid','outer'];
+  return ['outer'];
+}
+function protectedLanes(course){
+  if (course==='A') return [];
+  if (course==='B') return ['inner'];
+  return ['inner','mid'];
+}
+function canRail(){
+  if (state.course==='A') return state.week>=3;
+  if (state.course==='B') return state.week>=6;
+  return false;
+}
+
+/* ===================== 作業アクション判定 ===================== */
+
+function actionCost(a){ return a.cost * (state.weekCostMult||1); }
+function canAfford(a){ return state.ap >= a.p && state.budget >= actionCost(a); }
+
+function rollOutcome(actionKey){
+  var critP = 0.20 + staffCritBonus(actionKey);
+  var failP = 0.05;
+  var r = Math.random();
+  if (r < failP) return 'fail';
+  if (r < failP + critP) return 'crit';
+  return 'success';
+}
+function outcomeMult(o){ return o==='fail' ? 0.5 : (o==='crit' ? 1.5 : 1.0); }
+function outcomeTag(o){ return o==='fail' ? '【失敗】' : (o==='crit' ? '【大成功】' : '【成功】'); }
+function outcomeCls(o){ return o==='fail' ? 'fail' : (o==='crit' ? 'crit' : null); }
+function logOutcome(label, outcome, detail){
+  addLog(label + outcomeTag(outcome) + detail, outcomeCls(outcome));
+}
+
+function doWater(){
+  var a = ACTIONS.water;
+  if (!canAfford(a)) return;
+  state.ap -= a.p; state.budget -= actionCost(a);
+  var outcome = rollOutcome('water');
+  var om = outcomeMult(outcome);
+  var mult = om * staffEffectMult('water');
+  var amt = a.moistAmt * mult;
+  state.moist = Math.min(95, state.moist + amt);
+  state.cushion = clamp(state.cushion + a.cushionAmt*om, 7.0, 12.0);
+  state.dartWaterFlag = true;
+  logOutcome(a.label, outcome, '含水率+' + amt.toFixed(1));
+  render();
+}
+function doMow(){
+  var a = ACTIONS.mow;
+  if (!canAfford(a)) return;
+  state.ap -= a.p; state.budget -= actionCost(a);
+  var outcome = rollOutcome('mow');
+  var amt = a.grassAmt * outcomeMult(outcome);
+  state.grass = Math.max(8, state.grass - amt);
+  logOutcome(a.label, outcome, '芝丈-' + amt.toFixed(1));
+  render();
+}
+function doAerate(){
+  var a = ACTIONS.aerate;
+  if (!canAfford(a)) return;
+  state.ap -= a.p; state.budget -= actionCost(a);
+  var outcome = rollOutcome('aerate');
+  var mult = outcomeMult(outcome);
+  var cushionAmt = a.cushionAmt * mult;
+  var rootAmt = a.rootAmt * mult;
+  state.cushion = Math.min(12.0, state.cushion + cushionAmt);
+  state.root = Math.min(100, state.root + rootAmt);
+  cells.forEach(function(c){ c.dmg = Math.min(100, c.dmg + a.dmgSideAmt); });
+  logOutcome(a.label, outcome, 'クッション値+' + cushionAmt.toFixed(1) + '・根+' + rootAmt.toFixed(1) + '（全セル傷み+' + a.dmgSideAmt + '）');
+  render();
+}
+function doFert(){
+  var a = ACTIONS.fert;
+  if (!canAfford(a)) return;
+  state.ap -= a.p; state.budget -= actionCost(a);
+  var outcome = rollOutcome('fert');
+  var mult = outcomeMult(outcome) * staffEffectMult('fert');
+  var rootAmt = a.rootAmt * mult;
+  var grassAmt = a.grassAmt * mult;
+  state.root = Math.min(100, state.root + rootAmt);
+  state.grass = state.grass + grassAmt;
+  logOutcome(a.label, outcome, '根+' + rootAmt.toFixed(1) + '・芝丈+' + grassAmt.toFixed(1));
+  render();
+}
+function doRepair(){
+  var a = ACTIONS.repair;
+  if (!canAfford(a)) return;
+  state.ap -= a.p; state.budget -= actionCost(a);
+  var outcome = rollOutcome('repair');
+  var om = outcomeMult(outcome);
+  var mult = om * staffEffectMult('repair');
+  var dmgAmt = a.dmgAmt * mult;
+  var z = ZONE_DEFS[state.selectedZone];
+  z.segs.forEach(function(seg){
+    LANE_NAMES.forEach(function(lane){
+      var c = cellAt(seg, lane);
+      c.dmg = Math.max(0, c.dmg - dmgAmt);
+    });
+  });
+  state.root = Math.min(100, state.root + a.rootAmt*om);
+  logOutcome(a.label, outcome, '「' + z.name + '」の傷み-' + dmgAmt.toFixed(1));
+  render();
+}
+function doHarrow(){
+  var a = ACTIONS.harrow;
+  if (!canAfford(a)) return;
+  state.ap -= a.p; state.budget -= actionCost(a);
+  var outcome = rollOutcome('harrow');
+  var mult = outcomeMult(outcome) * staffEffectMult('harrow');
+  var dmgAmt = a.dartDmgAmt * mult;
+  var sandAmt = a.sandAmt * mult;
+  dartCells.forEach(function(dc){ dc.dmg = Math.max(0, dc.dmg - dmgAmt); });
+  state.sand = clamp(state.sand + sandAmt, 7.0, 11.0);
+  logOutcome(a.label, outcome, 'ダート傷み-' + dmgAmt.toFixed(0) + '・砂厚+' + sandAmt.toFixed(1));
+  render();
+}
+function doSandfill(){
+  var a = ACTIONS.sandfill;
+  if (!canAfford(a)) return;
+  state.ap -= a.p; state.budget -= actionCost(a);
+  var outcome = rollOutcome('sandfill');
+  var sandAmt = a.sandAmt * outcomeMult(outcome);
+  state.sand = clamp(state.sand + sandAmt, 7.0, 11.0);
+  logOutcome(a.label, outcome, '砂厚+' + sandAmt.toFixed(1));
+  render();
+}
+function doRail(){
+  var a = ACTIONS.rail;
+  if (!canRail() || !canAfford(a)) return;
+  state.ap -= a.p; state.budget -= actionCost(a);
+  state.course = state.course==='A' ? 'B' : 'C';
+  addLog('内柵を移動し、' + state.course + 'コースに変更した（戻せません）。', 'crit');
+  render();
+}
+
+/* ===================== スタッフ ===================== */
+
+function hiredCount(){
+  var n = 0;
+  Object.keys(state.staff).forEach(function(k){ if (state.staff[k]) n++; });
+  return n;
+}
+function hireStaff(key){
+  if (state.staff[key] || hiredCount()>=2) return;
+  state.staff[key] = true;
+  addLog(STAFF_DEFS[key].name + 'を雇用した。（週給' + STAFF_DEFS[key].wage + '万円）');
+  render();
+}
+function fireStaff(key){
+  if (!state.staff[key]) return;
+  state.staff[key] = false;
+  addLog(STAFF_DEFS[key].name + 'を解雇した。');
+  render();
+}
+
+/* ===================== 週末シミュレーション ===================== */
+
+function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+
+function laneAvg(lane, zoneIndex){
+  var list = cells.filter(function(c){ return c.lane===lane && (zoneIndex===undefined || c.zoneIndex===zoneIndex); });
+  if (!list.length) return 0;
+  var sum = 0; list.forEach(function(c){ sum += c.dmg; });
+  return sum/list.length;
+}
+function dartAvgDmg(){
+  if (!dartCells.length) return 0;
+  var sum = 0; dartCells.forEach(function(c){ sum += c.dmg; });
+  return sum/dartCells.length;
+}
+function usedMaxDmg(){
+  var used = usedLanes(state.course);
+  var m = 0;
+  cells.forEach(function(c){ if (used.indexOf(c.lane)>=0 && c.dmg>m) m = c.dmg; });
+  return m;
+}
+
+function weatherEffect(cat){
+  if (cat==='sun'){ state.moist -= 7; state.cushion -= 0.1; }
+  else if (cat==='cloud'){ state.moist -= 3; }
+  else if (cat==='rain'){ state.moist += 15; state.cushion += 0.15; }
+  else if (cat==='storm'){ state.moist += 28; state.cushion += 0.3; }
+  state.moist = clamp(state.moist, 10, 95);
+  state.cushion = clamp(state.cushion, 7.0, 12.0);
+}
+
+function conditionLabel(){
+  if (state.moist < 45) return '良';
+  if (state.moist < 60) return '稍重';
+  if (state.moist < 75) return '重';
+  return '不良';
+}
+
+function laneWeights(course, innerCell){
+  if (course==='A'){
+    var shiftMode = innerCell.dmg > 50;
+    return shiftMode ? {inner:0.5, mid:0.9, outer:0.5} : {inner:1.0, mid:0.55, outer:0.25};
+  }
+  if (course==='B') return { inner:0, mid:1.0, outer:0.55 };
+  return { inner:0, mid:0, outer:1.0 };
+}
+
+function raceWear(){
+  var g1Mult = isG1Week() ? 1.3 : 1.0;
+  var races = 12;
+  for (var seg=0; seg<NSEG; seg++){
+    var sp = samplePoints[seg];
+    var climbMult = 1 + sp.climbDz*0.15;
+    var cornerMult = 1 + sp.cornerFactor*0.8;
+    var innerCell = cellAt(seg,'inner');
+    var weights = laneWeights(state.course, innerCell);
+    LANE_NAMES.forEach(function(lane){
+      var laneWeight = weights[lane];
+      if (!laneWeight) return;
+      var c = cellAt(seg, lane);
+      var laneCornerMult = cornerMult * (lane==='inner' ? (1+sp.cornerFactor*0.5) : 1);
+      var moistMult = state.moist > 70 ? 1.4 : 1;
+      var grassMult = state.grass < 10 ? 1.2 : 1;
+      var rootMult = state.root < 50 ? 1.3 : 1;
+      var rnd = 0.7 + Math.random()*0.6;
+      var add = 0.7 * races * laneCornerMult * climbMult * laneWeight * moistMult * grassMult * rootMult * rnd * g1Mult;
+      c.dmg = clamp(c.dmg + add, 0, 100);
+    });
+  }
+}
+
+function dartRaceWear(){
+  var g1Mult = isG1Week() ? 1.3 : 1.0;
+  var dryMult = (!state.dartWaterFlag && state.moist < 40) ? 1.2 : 1.0;
+  dartCells.forEach(function(dc){
+    var sp = samplePoints[dc.seg];
+    var cornerMult = 1 + sp.cornerFactor*0.8;
+    var rnd = 0.7 + Math.random()*0.6;
+    var add = 0.5 * 10 * rnd * cornerMult * dryMult * g1Mult;
+    dc.dmg = clamp(dc.dmg + add, 0, 100);
+  });
+  state.sand = clamp(state.sand - 0.15, 7.0, 11.0);
+  state.dartWaterFlag = false;
+}
+
+function randomRoughSpots(){
+  var n = 2 + Math.floor(Math.random()*3); // 2-4
+  for (var i=0;i<n;i++){
+    var seg = Math.floor(Math.random()*NSEG);
+    var lane = Math.random() < 0.6 ? 'inner' : (Math.random()<0.7?'mid':'outer');
+    var c = cellAt(seg, lane);
+    var add = 10 + Math.random()*8;
+    c.dmg = clamp(c.dmg + add, 0, 100);
+    var zoneName = ZONE_DEFS[samplePoints[seg].zoneIndex].name;
+    var laneJp = {inner:'内側', mid:'中ほど', outer:'外側'};
+    addLog(zoneName + 'の' + laneJp[lane] + 'に蹄跡が集中した。');
+  }
+}
+
+function checkBreakdown(dayLabel){
+  var used = usedLanes(state.course);
+  var bogAvg = laneAvg(used[0]);
+  var mDmg = usedMaxDmg();
+  var p = 0.04
+    + (state.cushion < 8.3 ? 0.06 : 0)
+    + (state.moist > 75 ? 0.05 : 0)
+    + (bogAvg > 55 ? 0.05 : 0)
+    + (mDmg > 80 ? 0.04 : 0)
+    + (state.sand < 8.0 ? 0.04 : 0);
+  if (Math.random() < p){
+    state.safety = clamp(state.safety - 22, 0, 100);
+    state.breakdownCount++;
+    addLog(dayLabel + 'で競走中止が発生。硬さ・荒れが要因か。', 'crit');
+  }
+}
+
+function evalClock(){
+  var t = (48 - state.moist)*0.06 + (9.8 - state.cushion)*0.8 + (14 - state.grass)*0.15;
+  var label, score;
+  if (t > 2.2){ label='超高速(批判)'; score=40; }
+  else if (t > 1.2){ label='高速'; score=75; }
+  else if (t > -0.8){ label='標準'; score=100; }
+  else if (t > -2){ label='時計かかる'; score=80; }
+  else { label='タフ(批判)'; score=50; }
+  if (state.sand < 8.0) label += '・ダート高速(批判)';
+  if (state.sand > 10.0) score -= 10;
+  score = clamp(score, 0, 100);
+  return { label: label, score: score };
+}
+
+function evalFairness(){
+  var used = usedLanes(state.course);
+  var d = 0;
+  if (used.length > 1){
+    var a1 = laneAvg(used[0]);
+    var a2 = laneAvg(used[used.length-1]);
+    d = a1 - a2;
+  }
+  var score = clamp(100 - Math.max(0, d-8)*2.2, 0, 100);
+  if (dartAvgDmg() > 50) score = clamp(score - 10, 0, 100);
+  if (Math.abs(d) > 25) addLog('騎手コメント: 「内は掘れて走りにくい」');
+  return { score: score, diff: d };
+}
+
+function weightedAvg(list){
+  var sw=0, sc=0;
+  list.forEach(function(item){
+    var w = G1_WEEKS.indexOf(item.week)>=0 ? 2 : 1;
+    sw += w; sc += item.score*w;
+  });
+  return sw ? sc/sw : 0;
+}
+
+function resetWeekFlags(){
+  state.weekCostMult = 1;
+  state.heatwaveActive = false;
+  state.heatwaveNightWater = false;
+  state.inspectionPending = false;
+  state.activeEvent = null;
+}
+
+function advanceWeek(){
+  addLog('--- 月〜金の管理 ---');
+  for (var d=0; d<5; d++){
+    weatherEffect(state.forecast[d].actual);
+    if (state.heatwaveActive){ state.moist = clamp(state.moist - 12, 10, 95); }
+  }
+  addLog(DAY_NAMES.slice(0,5).join('') + 'の天気を適用した。');
+
+  addLog('--- 週末レース (' + WEEK_LABELS[state.week] + ') ---');
+  raceWear();
+  dartRaceWear();
+  randomRoughSpots();
+  checkBreakdown('土曜');
+  checkBreakdown('日曜');
+
+  var cond = conditionLabel();
+  addLog('週末の馬場状態: ' + cond);
+
+  var clockRes = evalClock();
+  var fairRes = evalFairness();
+  state.clockScores.push({ week: state.week, score: clockRes.score });
+  state.fairScores.push({ week: state.week, score: fairRes.score });
+  addLog('時計評価: ' + clockRes.label + ' (スコア' + clockRes.score + ')');
+  addLog('公平性スコア: ' + fairRes.score.toFixed(1) + ' (差' + fairRes.diff.toFixed(1) + ')');
+
+  if (state.inspectionPending){
+    var used = usedLanes(state.course);
+    var sum = 0; used.forEach(function(l){ sum += laneAvg(l); });
+    var avgUsed = sum / used.length;
+    if (avgUsed < 30){
+      state.repBonus = clamp(state.repBonus + 6, -10, 10);
+      addLog('JRA査察: 馬場状態は良好と評価された。評判+6相当', 'crit');
+    } else {
+      state.repBonus = clamp(state.repBonus - 6, -10, 10);
+      addLog('JRA査察: 馬場状態に厳しい評価。評判-6相当', 'crit');
+    }
+  }
+
+  // 週末後の自然変化
+  var grassBefore = state.grass;
+  state.grass += 0.8;
+  state.root -= 3;
+  if (grassBefore < 10) state.root -= 2;
+  if (state.staff.turf) state.root += 3;
+  if (state.heatwaveActive && !state.heatwaveNightWater) state.root -= 12;
+  state.root = clamp(state.root, 0, 100);
+  state.cushion = clamp(state.cushion - 0.35, 7.0, 12.0);
+  var recov = state.root*0.03;
+  cells.forEach(function(c){ c.dmg = clamp(c.dmg - recov, 0, 100); });
+  protectedLanes(state.course).forEach(function(lane){
+    cells.forEach(function(c){ if (c.lane===lane) c.dmg = clamp(c.dmg - 12, 0, 100); });
+  });
+
+  // スタッフ週給
+  var totalWage = 0;
+  Object.keys(state.staff).forEach(function(k){ if (state.staff[k]) totalWage += STAFF_DEFS[k].wage; });
+
+  state.ap = 8 + (state.staff.vet ? 2 : 0);
+  state.budget += 24;
+
+  if (totalWage > 0){
+    if (state.budget < totalWage){
+      Object.keys(state.staff).forEach(function(k){
+        if (state.staff[k]){
+          state.staff[k] = false;
+          addLog(STAFF_DEFS[k].name + 'への給与が払えず解雇した。', 'fail');
+        }
+      });
+      state.repBonus = clamp(state.repBonus - 3, -10, 10);
+    } else {
+      state.budget -= totalWage;
+    }
+  }
+
+  resetWeekFlags();
+
+  if (state.safety < 40){
+    render();
+    showFiredModal();
+    return;
+  }
+
+  if (state.week >= TOTAL_WEEKS){
+    render();
+    showResultModal();
+    return;
+  }
+
+  state.week++;
+  genForecast();
+  addLog('週' + state.week + '(' + WEEK_LABELS[state.week] + ')が始まる。');
+  maybeTriggerEvent();
+  render();
+}
+
+/* ===================== イベント ===================== */
+
+function maybeTriggerEvent(){
+  if (Math.random() >= 0.6) return;
+  var types = ['typhoon','heatwave','media','pricehike','inspection','goodweather'];
+  var type = types[Math.floor(Math.random()*types.length)];
+  state.activeEvent = { type: type };
+  if (type==='pricehike'){
+    state.weekCostMult = 1.5;
+    addLog('資材高騰: 今週の作業コストが1.5倍になった。', 'crit');
+  } else if (type==='goodweather'){
+    state.forecast.forEach(function(f){ f.forecast='sun'; f.actual='sun'; });
+    addLog('好天が続く予報。今週はずっと晴れそうだ。');
+  } else if (type==='inspection'){
+    state.inspectionPending = true;
+    addLog('JRA査察が入る予定。週末の馬場状態が評価される。', 'crit');
+  } else if (type==='heatwave'){
+    state.heatwaveActive = true;
+  }
+  showEventModal(type);
+}
+
+function resolveTyphoon(mitigate){
+  if (mitigate){
+    var cost = 15, p = 3;
+    if (state.ap < p || state.budget < cost){ return; }
+    state.ap -= p; state.budget -= cost;
+    state.moist = clamp(state.moist+20, 10, 95);
+    state.root = clamp(state.root-5, 0, 100);
+    cells.forEach(function(c){ c.dmg = clamp(c.dmg+4, 0, 100); });
+    dartCells.forEach(function(c){ c.dmg = clamp(c.dmg+4, 0, 100); });
+    addLog('台風: 排水対策を実施し、被害を半減できた。');
+  } else {
+    state.moist = clamp(state.moist+40, 10, 95);
+    state.root = clamp(state.root-10, 0, 100);
+    cells.forEach(function(c){ c.dmg = clamp(c.dmg+8, 0, 100); });
+    dartCells.forEach(function(c){ c.dmg = clamp(c.dmg+8, 0, 100); });
+    addLog('台風: 様子を見た結果、被害が拡大した。', 'fail');
+  }
+  closeModal();
+  render();
+}
+function resolveHeatwave(nightWater){
+  if (nightWater){
+    var cost = 10;
+    if (state.budget < cost){ return; }
+    state.budget -= cost;
+    state.heatwaveNightWater = true;
+    addLog('猛暑: 夜間散水を手配し、根への負担を抑えた。');
+  } else {
+    addLog('猛暑: 通常対応とした。根への負担が予想される。');
+  }
+  closeModal();
+  render();
+}
+function resolveMedia(accept){
+  if (accept){
+    if (state.ap < 1){ return; }
+    state.ap -= 1;
+    state.repBonus = clamp(state.repBonus + 5, -10, 10);
+    addLog('メディア取材を受けた。評判+5相当。');
+  } else {
+    addLog('メディア取材を断った。');
+  }
+  closeModal();
+  render();
+}
+
+function eventBody(type){
+  switch(type){
+    case 'typhoon': return '台風が接近している。排水対策を行うか、様子を見るか選択してください。';
+    case 'heatwave': return '猛暑が続く予報。夜間散水を手配するか、通常対応とするか選択してください。';
+    case 'media': return 'メディアから取材の申し込みがあった。受けるか断るか選択してください。';
+    case 'pricehike': return '資材価格が高騰している。今週の作業コストが1.5倍になる。';
+    case 'inspection': return 'JRA査察が予定されている。週末時点の馬場状態が評価される。';
+    case 'goodweather': return '好天が続く予報が出ている。今週の天気予報が全て晴れになった。';
+  }
+  return '';
+}
+
+function showEventModal(type){
+  var layer = document.getElementById('modalLayer');
+  var choices = '';
+  if (type==='typhoon'){
+    choices = '<div class="choices"><button id="evA">排水対策(P3/15万円)</button><button id="evB">様子を見る</button></div>';
+  } else if (type==='heatwave'){
+    choices = '<div class="choices"><button id="evA">夜間散水手配(10万円)</button><button id="evB">通常対応</button></div>';
+  } else if (type==='media'){
+    choices = '<div class="choices"><button id="evA">受ける(P1)</button><button id="evB">断る</button></div>';
+  } else {
+    choices = '<div class="choices"><button id="evOk">了解</button></div>';
+  }
+  layer.innerHTML =
+    '<div class="modal-bg"><div class="modal">' +
+      '<h2>週次イベント: ' + EVENT_LABELS[type] + '</h2>' +
+      '<p>' + eventBody(type) + '</p>' +
+      choices +
+    '</div></div>';
+  if (type==='typhoon'){
+    document.getElementById('evA').addEventListener('click', function(){ resolveTyphoon(true); });
+    document.getElementById('evB').addEventListener('click', function(){ resolveTyphoon(false); });
+  } else if (type==='heatwave'){
+    document.getElementById('evA').addEventListener('click', function(){ resolveHeatwave(true); });
+    document.getElementById('evB').addEventListener('click', function(){ resolveHeatwave(false); });
+  } else if (type==='media'){
+    document.getElementById('evA').addEventListener('click', function(){ resolveMedia(true); });
+    document.getElementById('evB').addEventListener('click', function(){ resolveMedia(false); });
+  } else {
+    document.getElementById('evOk').addEventListener('click', function(){ closeModal(); render(); });
+  }
+}
+
+/* ===================== 描画 ===================== */
+
+var courseCanvas = document.getElementById('course');
+var cctx = courseCanvas.getContext('2d');
+cctx.imageSmoothingEnabled = false;
+var elevCanvas = document.getElementById('elev');
+var ectx = elevCanvas.getContext('2d');
+ectx.imageSmoothingEnabled = false;
+
+function dmgColor(dmg){
+  if (dmg < 20) return '#5c9448';
+  if (dmg < 40) return '#7aa04a';
+  if (dmg < 60) return '#a08c3e';
+  if (dmg < 80) return '#8a6f42';
+  return '#6e523a';
+}
+function dartColor(dmg){
+  if (dmg < 20) return '#c2a179';
+  if (dmg < 40) return '#a8865c';
+  if (dmg < 60) return '#8a6f4d';
+  if (dmg < 80) return '#6b5738';
+  return '#4a3a26';
+}
+
+function fenceOffset(course){
+  if (course==='B') return 2.7;
+  if (course==='C') return -2.7;
+  return null;
+}
+
+function drawCourse(){
+  cctx.setTransform(1,0,0,1,0,0);
+  cctx.clearRect(0,0,courseCanvas.width,courseCanvas.height);
+  cctx.setTransform(2,0,0,2,0,0);
+  cctx.fillStyle = '#20261e';
+  cctx.fillRect(0,0,320,180);
+
+  // 内馬場
+  cctx.beginPath();
+  infieldPoly.forEach(function(pt,i){ if(i===0) cctx.moveTo(pt[0],pt[1]); else cctx.lineTo(pt[0],pt[1]); });
+  cctx.closePath();
+  cctx.fillStyle = '#35502c';
+  cctx.fill();
+
+  // 池
+  cctx.beginPath();
+  cctx.ellipse(190, 90, 22, 13, 0, 0, Math.PI*2);
+  cctx.fillStyle = '#3a6e8f';
+  cctx.fill();
+
+  // 大けやき
+  cctx.fillStyle = '#5a4632';
+  cctx.fillRect(118, 96, 3, 10);
+  cctx.fillStyle = '#3f6b34';
+  cctx.beginPath();
+  cctx.ellipse(119, 92, 8, 7, 0, 0, Math.PI*2);
+  cctx.fill();
+
+  // ダートセル
+  var prot = protectedLanes(state.course);
+  dartCells.forEach(function(dc){
+    cctx.beginPath();
+    dc.poly.forEach(function(pt,i){ if(i===0) cctx.moveTo(pt[0],pt[1]); else cctx.lineTo(pt[0],pt[1]); });
+    cctx.closePath();
+    cctx.fillStyle = dartColor(dc.dmg);
+    cctx.fill();
+  });
+
+  // 芝セル
+  cells.forEach(function(c){
+    cctx.beginPath();
+    c.poly.forEach(function(pt,i){ if(i===0) cctx.moveTo(pt[0],pt[1]); else cctx.lineTo(pt[0],pt[1]); });
+    cctx.closePath();
+    var isProtected = prot.indexOf(c.lane) >= 0;
+    if (isProtected){
+      cctx.globalAlpha = 0.35;
+      cctx.fillStyle = '#2c2f39';
+      cctx.fill();
+      cctx.globalAlpha = 1.0;
+      cctx.strokeStyle = 'rgba(255,255,255,0.12)';
+      cctx.lineWidth = 0.3;
+      cctx.beginPath();
+      cctx.moveTo(c.poly[0][0], c.poly[0][1]);
+      cctx.lineTo(c.poly[2][0], c.poly[2][1]);
+      cctx.stroke();
+    } else {
+      cctx.fillStyle = dmgColor(c.dmg);
+      cctx.fill();
+      if (c.zoneIndex === state.selectedZone){
+        cctx.strokeStyle = '#f0c04a';
+        cctx.lineWidth = 0.5;
+        cctx.stroke();
+      }
+    }
+  });
+
+  // 内柵(使用中の最内レーン境界)
+  var fo = fenceOffset(state.course);
+  if (fo !== null){
+    cctx.strokeStyle = '#ffffff';
+    cctx.lineWidth = 0.8;
+    cctx.beginPath();
+    for (var i=0;i<=NSEG;i++){
+      var sp = samplePoints[i%NSEG];
+      var px = sp.x + sp.nx*fo, py = sp.y + sp.ny*fo;
+      if (i===0) cctx.moveTo(px,py); else cctx.lineTo(px,py);
+    }
+    cctx.stroke();
+  }
+
+  // ゴール板(セグメント0境界)
+  var g = samplePoints[0];
+  cctx.strokeStyle = '#ffffff';
+  cctx.lineWidth = 1;
+  cctx.beginPath();
+  cctx.moveTo(g.x + g.nx*8, g.y + g.ny*8);
+  cctx.lineTo(g.x - g.nx*8, g.y - g.ny*8);
+  cctx.stroke();
+  cctx.fillStyle = '#d1443a';
+  cctx.fillRect(g.x + g.nx*9 - 1, g.y + g.ny*9 - 1, 3, 3);
+}
+
+function drawElev(){
+  ectx.setTransform(1,0,0,1,0,0);
+  ectx.clearRect(0,0,elevCanvas.width,elevCanvas.height);
+  ectx.setTransform(2,0,0,2,0,0);
+  ectx.fillStyle = '#1a1d24';
+  ectx.fillRect(0,0,320,36);
+
+  var minE = Math.min.apply(null, samplePoints.map(function(s){return s.elev;}));
+  var maxE = Math.max.apply(null, samplePoints.map(function(s){return s.elev;}));
+  var range = (maxE-minE) || 1;
+  var w = 320/NSEG;
+
+  function yFor(e){
+    return 32 - ((e-minE)/range)*26;
+  }
+
+  // ハイライト選択ゾーン
+  var z = ZONE_DEFS[state.selectedZone];
+  ectx.fillStyle = 'rgba(240,192,74,0.18)';
+  z.segs.forEach(function(seg){ ectx.fillRect(seg*w, 0, w+1, 36); });
+
+  ectx.beginPath();
+  ectx.moveTo(0, 32);
+  for (var i=0;i<NSEG;i++){
+    ectx.lineTo(i*w, yFor(samplePoints[i].elev));
+  }
+  ectx.lineTo(320, yFor(samplePoints[0].elev));
+  ectx.lineTo(320,32);
+  ectx.closePath();
+  ectx.fillStyle = 'rgba(159,225,203,0.35)';
+  ectx.fill();
+
+  ectx.strokeStyle = '#9fe1cb';
+  ectx.lineWidth = 1;
+  ectx.beginPath();
+  for (var j=0;j<NSEG;j++){
+    var px = j*w, py = yFor(samplePoints[j].elev);
+    if (j===0) ectx.moveTo(px,py); else ectx.lineTo(px,py);
+  }
+  ectx.stroke();
+
+  ectx.fillStyle = '#8a8d97';
+  ectx.font = '6px monospace';
+  ectx.fillText('坂', 260*w/320, 10);
+}
+
+/* ===================== UI更新 ===================== */
+
+function fmtManyen(v){ return Math.round(v) + '万円'; }
+
+function cushionJudgeText(v){
+  if (v < 9.0) return '(低い=硬め)';
+  if (v > 10.5) return '(高い=軟らかめ)';
+  return '(標準)';
+}
+
+function populateZoneSelect(){
+  var sel = document.getElementById('zoneSelect');
+  sel.innerHTML = '';
+  ZONE_DEFS.forEach(function(z, zi){
+    var opt = document.createElement('option');
+    opt.value = zi;
+    opt.textContent = z.name;
+    sel.appendChild(opt);
+  });
+  sel.value = state.selectedZone;
+}
+
+function renderZoneInfo(){
+  var z = ZONE_DEFS[state.selectedZone];
+  var avgElevStart = samplePoints[z.segs[0]].elev;
+  var avgElevEnd = samplePoints[z.segs[z.segs.length-1]].elev;
+  var grade = (avgElevEnd - avgElevStart).toFixed(1);
+  var inAvg = laneAvg('inner', state.selectedZone);
+  var midAvg = laneAvg('mid', state.selectedZone);
+  var outAvg = laneAvg('outer', state.selectedZone);
+  document.getElementById('zoneInfo').innerHTML =
+    '<b>' + z.name + '</b> ／ 区間内標高差: ' + grade + ' (0.1m単位)<br>' +
+    'レーン別平均傷み　内:' + inAvg.toFixed(1) + ' 中:' + midAvg.toFixed(1) + ' 外:' + outAvg.toFixed(1);
+}
+
+function renderStaffPanel(){
+  var el = document.getElementById('staffList');
+  el.innerHTML = '';
+  Object.keys(STAFF_DEFS).forEach(function(key){
+    var s = STAFF_DEFS[key];
+    var hired = state.staff[key];
+    var row = document.createElement('div');
+    row.className = 'staffRow';
+    var infoDiv = document.createElement('div');
+    infoDiv.innerHTML = '<div class="staffName">' + s.name + (hired?' [雇用中]':'') + '</div>' +
+      '<div class="staffDesc">' + s.desc + '</div>' +
+      '<div class="staffWage">週給' + s.wage + '万円</div>';
+    row.appendChild(infoDiv);
+    var btn = document.createElement('button');
+    if (hired){
+      btn.textContent = '解雇';
+      btn.addEventListener('click', function(){ fireStaff(key); });
+    } else {
+      btn.textContent = '雇用';
+      btn.disabled = hiredCount() >= 2;
+      btn.addEventListener('click', function(){ hireStaff(key); });
+    }
+    row.appendChild(btn);
+    el.appendChild(row);
+  });
+}
+
+function render(){
+  document.getElementById('weekLabel').textContent = '週' + state.week + '/' + TOTAL_WEEKS + ' (' + WEEK_LABELS[state.week] + ')';
+  document.getElementById('courseVal').textContent = state.course + 'コース';
+  document.getElementById('budgetVal').textContent = fmtManyen(state.budget);
+  document.getElementById('apVal').textContent = state.ap + ' / ' + (8 + (state.staff.vet?2:0));
+
+  var fc = document.getElementById('forecast');
+  fc.innerHTML = '';
+  state.forecast.forEach(function(f, i){
+    var div = document.createElement('div');
+    div.className = 'fday' + (i>=5?' weekend':'');
+    div.innerHTML = '<div class="dname">' + DAY_NAMES[i] + '</div><div class="icon">' + WEATHER_ICON[f.forecast] + '</div>';
+    fc.appendChild(div);
+  });
+
+  document.getElementById('cushionVal').textContent = state.cushion.toFixed(1);
+  document.getElementById('cushionJudge').textContent = cushionJudgeText(state.cushion);
+  document.getElementById('moistVal').textContent = state.moist.toFixed(0) + '%';
+  document.getElementById('moistBar').style.width = clamp(state.moist,0,100) + '%';
+  document.getElementById('grassVal').textContent = state.grass.toFixed(1) + 'cm';
+  document.getElementById('rootVal').textContent = state.root.toFixed(0);
+  document.getElementById('rootBar').style.width = clamp(state.root,0,100) + '%';
+
+  var inAvg = laneAvg('inner'), midAvg = laneAvg('mid'), outAvg = laneAvg('outer');
+  document.getElementById('laneInnerBar').style.width = clamp(inAvg,0,100) + '%';
+  document.getElementById('laneInnerBar').style.background = dmgColor(inAvg);
+  document.getElementById('laneMidBar').style.width = clamp(midAvg,0,100) + '%';
+  document.getElementById('laneMidBar').style.background = dmgColor(midAvg);
+  document.getElementById('laneOuterBar').style.width = clamp(outAvg,0,100) + '%';
+  document.getElementById('laneOuterBar').style.background = dmgColor(outAvg);
+  var prot = protectedLanes(state.course);
+  document.getElementById('laneInnerRow').className = 'minibar-row' + (prot.indexOf('inner')>=0?' protected':'');
+  document.getElementById('laneMidRow').className = 'minibar-row' + (prot.indexOf('mid')>=0?' protected':'');
+  document.getElementById('laneOuterRow').className = 'minibar-row' + (prot.indexOf('outer')>=0?' protected':'');
+
+  document.getElementById('dartVal').textContent = '砂厚' + state.sand.toFixed(1) + 'cm ・ 偏り' + dartAvgDmg().toFixed(1);
+
+  document.getElementById('safetyNum').textContent = state.safety.toFixed(0);
+  document.getElementById('safetyBar').style.width = clamp(state.safety,0,100) + '%';
+
+  var lastFair = state.fairScores.length ? state.fairScores[state.fairScores.length-1].score : 100;
+  var lastClock = state.clockScores.length ? state.clockScores[state.clockScores.length-1].score : 100;
+  var reputation = clamp((state.safety + lastFair + lastClock)/3 + state.repBonus, 0, 100);
+
+  document.getElementById('fairNum').textContent = lastFair.toFixed(0);
+  document.getElementById('fairBar').style.width = clamp(lastFair,0,100) + '%';
+  document.getElementById('clockNum').textContent = lastClock.toFixed(0);
+  document.getElementById('clockBar').style.width = clamp(lastClock,0,100) + '%';
+  document.getElementById('repNum').textContent = reputation.toFixed(0);
+  document.getElementById('repBar').style.width = clamp(reputation,0,100) + '%';
+
+  document.getElementById('btnWater').disabled = !canAfford(ACTIONS.water);
+  document.getElementById('btnMow').disabled = !canAfford(ACTIONS.mow);
+  document.getElementById('btnAerate').disabled = !canAfford(ACTIONS.aerate);
+  document.getElementById('btnFert').disabled = !canAfford(ACTIONS.fert);
+  document.getElementById('btnRepair').disabled = !canAfford(ACTIONS.repair);
+  document.getElementById('btnHarrow').disabled = !canAfford(ACTIONS.harrow);
+  document.getElementById('btnSand').disabled = !canAfford(ACTIONS.sandfill);
+  document.getElementById('btnRail').disabled = !canRail() || !canAfford(ACTIONS.rail);
+
+  var logEl = document.getElementById('log');
+  logEl.innerHTML = '';
+  state.log.slice(0,14).forEach(function(entry){
+    var d = document.createElement('div');
+    d.textContent = entry.msg;
+    if (entry.cls) d.classList.add(entry.cls);
+    logEl.appendChild(d);
+  });
+
+  renderZoneInfo();
+  renderStaffPanel();
+  drawCourse();
+  drawElev();
+}
+
+/* ===================== 入力 ===================== */
+
+function nearestSegment(px, py){
+  var best = -1, bestD = Infinity;
+  for (var i=0;i<NSEG;i++){
+    var sp = samplePoints[i];
+    var d = dist(px,py,sp.x,sp.y);
+    if (d < bestD){ bestD = d; best = i; }
+  }
+  return best;
+}
+
+courseCanvas.addEventListener('click', function(ev){
+  var rect = courseCanvas.getBoundingClientRect();
+  var scaleX = 320/rect.width, scaleY = 180/rect.height;
+  var px = (ev.clientX - rect.left) * scaleX;
+  var py = (ev.clientY - rect.top) * scaleY;
+  var seg = nearestSegment(px,py);
+  if (seg >= 0){
+    state.selectedZone = samplePoints[seg].zoneIndex;
+    document.getElementById('zoneSelect').value = state.selectedZone;
+    render();
+  }
+});
+
+document.getElementById('zoneSelect').addEventListener('change', function(ev){
+  state.selectedZone = parseInt(ev.target.value, 10);
+  render();
+});
+
+document.getElementById('btnWater').addEventListener('click', doWater);
+document.getElementById('btnMow').addEventListener('click', doMow);
+document.getElementById('btnAerate').addEventListener('click', doAerate);
+document.getElementById('btnFert').addEventListener('click', doFert);
+document.getElementById('btnRepair').addEventListener('click', doRepair);
+document.getElementById('btnHarrow').addEventListener('click', doHarrow);
+document.getElementById('btnSand').addEventListener('click', doSandfill);
+document.getElementById('btnRail').addEventListener('click', doRail);
+document.getElementById('advanceBtn').addEventListener('click', advanceWeek);
+
+/* ===================== 作業ボタン表記・効果プレビュー ===================== */
+
+var ACTION_BUTTONS = {
+  water: 'btnWater', mow: 'btnMow', aerate: 'btnAerate', fert: 'btnFert', repair: 'btnRepair',
+  harrow: 'btnHarrow', sandfill: 'btnSand', rail: 'btnRail'
+};
+
+function initActionButtons(){
+  Object.keys(ACTION_BUTTONS).forEach(function(key){
+    var a = ACTIONS[key];
+    var btn = document.getElementById(ACTION_BUTTONS[key]);
+    btn.textContent = a.label + ' (P' + a.p + '/' + a.cost + '万円)';
+    btn.title = previewText(key);
+    btn.addEventListener('mouseover', function(){ showPreview(key); });
+    btn.addEventListener('focus', function(){ showPreview(key); });
+    btn.addEventListener('mouseout', hidePreview);
+    btn.addEventListener('blur', hidePreview);
+  });
+}
+
+function showPreview(key){
+  document.getElementById('previewText').textContent = previewText(key);
+}
+function hidePreview(){
+  document.getElementById('previewText').textContent = '作業にカーソルを合わせると効果を表示';
+}
+
+/* ===================== モーダル ===================== */
+
+function closeModal(){
+  document.getElementById('modalLayer').innerHTML = '';
+}
+
+function showFiredModal(){
+  var layer = document.getElementById('modalLayer');
+  layer.innerHTML =
+    '<div class="modal-bg"><div class="modal">' +
+      '<h2>更迭</h2>' +
+      '<div class="grade" style="color:#d1443a;">D</div>' +
+      '<p>安全スコアが著しく低下し、造園課職員としての職務継続は困難と判断されました。</p>' +
+      '<p>故障件数: ' + state.breakdownCount + '件</p>' +
+      '<button id="retryBtn">もう一度</button>' +
+    '</div></div>';
+  document.getElementById('retryBtn').addEventListener('click', function(){ closeModal(); newGame(); });
+}
+
+function showResultModal(){
+  var fairAvg = weightedAvg(state.fairScores);
+  var clockAvg = weightedAvg(state.clockScores);
+  var total = clamp(state.safety*0.4 + fairAvg*0.3 + clockAvg*0.3 + state.repBonus, 0, 100);
+  var grade = 'D';
+  if (total >= 92) grade = 'S';
+  else if (total >= 83) grade = 'A';
+  else if (total >= 70) grade = 'B';
+  else if (total >= 55) grade = 'C';
+
+  var comment;
+  if (grade==='S') comment = '完璧な馬場造園。関係者からの信頼も厚い、伝説のシーズンだった。';
+  else if (grade==='A') comment = '安定した馬場管理で、全8週の開催を無事に乗り切った。';
+  else if (grade==='B') comment = '一部に課題は残ったが、大きな問題なく開催を終えた。';
+  else if (grade==='C') comment = '荒れや不公平感が目立つ開催となった。改善の余地あり。';
+  else comment = '安全面・公平性ともに大きな課題を残した開催となった。';
+
+  var layer = document.getElementById('modalLayer');
+  layer.innerHTML =
+    '<div class="modal-bg"><div class="modal">' +
+      '<h2>8週間の開催 終了</h2>' +
+      '<div class="grade">' + grade + '</div>' +
+      '<p>総合スコア: ' + total.toFixed(1) + '</p>' +
+      '<p>安全: ' + state.safety.toFixed(1) + ' ／ 公平平均: ' + fairAvg.toFixed(1) + ' ／ 時計平均: ' + clockAvg.toFixed(1) + ' ／ 評判ボーナス: ' + state.repBonus.toFixed(0) + '</p>' +
+      '<p>故障件数: ' + state.breakdownCount + '件 ／ 最終コース: ' + state.course + '</p>' +
+      '<p>' + comment + '</p>' +
+      '<button id="retryBtn">もう一度</button>' +
+    '</div></div>';
+  document.getElementById('retryBtn').addEventListener('click', function(){ closeModal(); newGame(); });
+}
+
+/* ===================== 起動 ===================== */
+
+newGame();
+populateZoneSelect();
+initActionButtons();
+
+})();
+</script>
+</body>
+</html>
