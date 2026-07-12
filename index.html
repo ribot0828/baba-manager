@@ -17,11 +17,10 @@
   #topbar .item { display: flex; flex-direction: column; gap: 2px; }
   #topbar .label { color: #8a8d97; font-size: 11px; }
   #topbar .value { color: #9fe1cb; font-weight: bold; }
-  #forecast { display: flex; gap: 6px; }
-  .fday { text-align: center; padding: 2px 4px; border-radius: 3px; min-width: 30px; }
-  .fday.weekend { background: #33303a; }
-  .fday .dname { font-size: 10px; color: #8a8d97; }
-  .fday .icon { font-size: 16px; }
+  #forecast { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
+  .fday { text-align: center; padding: 2px 4px; border-radius: 3px; min-width: 24px; background: #33303a; }
+  .fday .dname { font-size: 9px; color: #8a8d97; }
+  .fday .icon { font-size: 14px; }
   #main { display: flex; flex-wrap: wrap; gap: 10px; }
   #left { flex: 1 1 320px; min-width: 0; }
   #right { flex: 1 1 240px; max-width: 100%; }
@@ -44,10 +43,12 @@
   select, button { font-family: inherit; font-size: 12px; background: #2c2f39; color: #d9d9d0; border: 1px solid #4a4d57; border-radius: 3px; padding: 4px 6px; cursor: pointer; }
   select:hover, button:hover:not(:disabled) { border-color: #9fe1cb; }
   button:disabled { opacity: 0.4; cursor: not-allowed; }
+  select:disabled { opacity: 0.4; }
   #actions { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
   #actions button { flex: 1 1 auto; min-width: 110px; }
   #advanceBtn { background: #33613f; color: #eafff0; font-weight: bold; }
   #btnRail { background: #3a3d5a; }
+  #btnRailReset { background: #5a3d4d; }
   #zoneInfo { font-size: 11px; line-height: 1.5; }
   #log { background: #14161c; border: 1px solid #3a3d46; border-radius: 4px; padding: 6px 8px; height: 150px; overflow-y: auto; font-size: 11px; line-height: 1.6; }
   #log div { border-bottom: 1px dashed #2a2d35; padding: 2px 0; }
@@ -58,17 +59,29 @@
   #previewNote { color: #8a8d97; font-size: 10px; margin-top: 2px; }
   #zoneSelectRow { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
   .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 10; }
-  .modal { background: #23262e; border: 2px solid #f0c04a; border-radius: 6px; padding: 20px; width: 380px; max-width: 90%; }
+  .modal { background: #23262e; border: 2px solid #f0c04a; border-radius: 6px; padding: 20px; width: 420px; max-width: 92%; max-height: 86vh; overflow-y: auto; }
   .modal h2 { margin-top: 0; color: #f0c04a; }
   .modal .grade { font-size: 40px; text-align: center; color: #9fe1cb; margin: 10px 0; }
   .modal .choices { display: flex; gap: 8px; margin-top: 12px; }
   .modal .choices button { flex: 1 1 auto; }
+  .modal label { display: block; font-size: 12px; color: #8a8d97; margin: 10px 0 4px; }
+  .modal select { width: 100%; }
+  .modal table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 8px; }
+  .modal table th, .modal table td { border-bottom: 1px dashed #3a3d46; padding: 3px 4px; text-align: center; }
+  .modal table th { color: #8a8d97; }
   .hidden { display: none; }
   #staffPanel .staffRow { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 4px 0; border-bottom: 1px dashed #2a2d35; font-size: 11px; }
   #staffPanel .staffRow:last-child { border-bottom: none; }
   #staffPanel .staffName { color: #d9d9d0; font-weight: bold; }
   #staffPanel .staffDesc { color: #8a8d97; font-size: 10px; }
   #staffPanel .staffWage { color: #f0c04a; font-size: 10px; }
+  #meterPanel .meterRow { margin-bottom: 8px; }
+  #meterPanel .meterLabel { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 2px; }
+  #meterPanel .meterLabel .side { color: #8a8d97; font-size: 10px; }
+  .meter-track { position: relative; height: 12px; background: linear-gradient(to right, #7a4a3a 0%, #3a2f2a 48%, #2a2f3a 52%, #3a5a7a 100%); border: 1px solid #3a3d46; border-radius: 3px; }
+  .meter-center { position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: rgba(255,255,255,0.4); }
+  .meter-marker { position: absolute; top: -2px; width: 3px; height: 16px; background: #f0c04a; border-radius: 1px; transform: translateX(-50%); }
+  .meter-val { font-size: 10px; color: #d9d9d0; text-align: center; margin-top: 2px; }
 </style>
 </head>
 <body>
@@ -77,15 +90,19 @@
 
   <div class="panel" id="topbar">
     <div class="item">
-      <div class="label">開催週</div>
+      <div class="label">年月週</div>
       <div class="value" id="weekLabel">-</div>
     </div>
     <div class="item">
       <div class="label">使用コース</div>
       <div class="value" id="courseVal">-</div>
     </div>
+    <div class="item hidden" id="g1Item">
+      <div class="label">今週のレース</div>
+      <div class="value" id="g1Val">-</div>
+    </div>
     <div class="item">
-      <div class="label">天気予報(月〜日)</div>
+      <div class="label">週間天気(月〜日)</div>
       <div id="forecast"></div>
     </div>
     <div class="item">
@@ -139,6 +156,28 @@
           <div class="stat-title">ダート</div>
           <div class="stat-val" id="dartVal">-</div>
         </div>
+        <div class="stat-row">
+          <div class="stat-title">シルト化・砂摩耗</div>
+          <div class="minibar-row"><span class="lname">シ</span><div class="minibar-track"><div class="minibar-fill" id="siltBar"></div></div></div>
+          <div class="minibar-row"><span class="lname">摩</span><div class="minibar-track"><div class="minibar-fill" id="wearBar"></div></div></div>
+        </div>
+        <div class="stat-row">
+          <div class="stat-title">砂産地枠(年間)</div>
+          <div class="stat-val" id="sandQuotaVal">-</div>
+        </div>
+      </div>
+      <div class="panel" id="meterPanel">
+        <div class="stat-title">馬場傾向（パワー⇄スピード）</div>
+        <div class="meterRow">
+          <div class="meterLabel"><span>芝</span><span class="side">パワー ← → スピード</span></div>
+          <div class="meter-track"><div class="meter-center"></div><div class="meter-marker" id="turfMeterMarker"></div></div>
+          <div class="meter-val" id="turfMeterVal">-</div>
+        </div>
+        <div class="meterRow">
+          <div class="meterLabel"><span>ダート</span><span class="side">パワー ← → スピード</span></div>
+          <div class="meter-track"><div class="meter-center"></div><div class="meter-marker" id="dartMeterMarker"></div></div>
+          <div class="meter-val" id="dartMeterVal">-</div>
+        </div>
       </div>
       <div class="panel">
         <div class="stat-title">評価</div>
@@ -155,6 +194,10 @@
           <div class="bar-outer"><div class="bar-inner" id="clockBar"></div></div>
         </div>
         <div class="stat-row">
+          <div class="barlabel"><span>安定</span><span id="stabilityNum"></span></div>
+          <div class="bar-outer"><div class="bar-inner" id="stabilityBar"></div></div>
+        </div>
+        <div class="stat-row">
           <div class="barlabel"><span>評判</span><span id="repNum"></span></div>
           <div class="bar-outer"><div class="bar-inner" id="repBar"></div></div>
         </div>
@@ -162,6 +205,10 @@
       <div class="panel" id="staffPanel">
         <div class="stat-title">スタッフ雇用 (最大2名)</div>
         <div id="staffList"></div>
+      </div>
+      <div class="panel" id="missionPanel">
+        <div class="stat-title">JRAミッション (最大2件)</div>
+        <div id="missionList">進行中のミッションなし</div>
       </div>
     </div>
   </div>
@@ -175,8 +222,13 @@
       <button id="btnRepair">目土・補修</button>
       <button id="btnHarrow">ハロー掛け</button>
       <button id="btnSand">砂補充</button>
+      <button id="btnOverseed">オーバーシード</button>
+      <button id="btnAntifreeze">凍結防止剤</button>
+      <button id="btnSandMix">クッション砂入替</button>
+      <button id="btnSandWash">クッション砂洗浄</button>
       <button id="btnRail">内柵移動</button>
-      <button id="advanceBtn">開催週末へ→</button>
+      <button id="btnRailReset">内柵リセット</button>
+      <button id="advanceBtn">翌週へ→</button>
     </div>
     <div class="panel" id="previewPanel">
       <div id="previewText">作業にカーソルを合わせると効果を表示</div>
@@ -329,51 +381,105 @@ for (var seg2=0; seg2<NSEG; seg2++){
 // 内馬場ポリゴン(ダートのさらに内側、offset16)
 var infieldPoly = samplePoints.map(function(sp){ return [sp.x+sp.nx*16, sp.y+sp.ny*16]; });
 
-/* ===================== ゲーム状態 ===================== */
+/* ===================== カレンダー定数(週制) ===================== */
 
-var TOTAL_WEEKS = 8;
-var G1_WEEKS = [3,5,8];
-var WEEK_LABELS = {
-  1:'開幕週', 2:'青葉賞週', 3:'オークス週(G1)', 4:'通常週',
-  5:'日本ダービー週(G1)', 6:'通常週', 7:'エプソムC週', 8:'安田記念週(G1)'
-};
-var WEATHER_CATS = ['sun','cloud','rain','storm'];
-var WEATHER_ICON = { sun:'☀', cloud:'☁', rain:'☂', storm:'⛈' };
-var WEATHER_PROB = [0.45,0.30,0.20,0.05];
+var MONTH_NAMES = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
 var DAY_NAMES = ['月','火','水','木','金','土','日'];
+var RACE_MONTHS = [1,2,4,5,6,10,11];
+var OFF_MONTHS = [3,7,8,9,12];
+var G1_MONTHS = { 2:'フェブラリーS', 5:'オークス/日本ダービー', 6:'安田記念', 10:'天皇賞(秋)', 11:'ジャパンカップ' };
+// 月・週キー("month_week")単位のG1割当
+var G1_WEEKS = {
+  '2_3': 'フェブラリーS',
+  '5_3': 'オークス',
+  '5_4': '日本ダービー',
+  '6_1': '安田記念',
+  '10_4': '天皇賞(秋)',
+  '11_4': 'ジャパンカップ'
+};
+var HEATWAVE_MONTHS = [7,8,9];
+var TYPHOON_MONTHS = [8,9,10];
+var COLDWAVE_MONTHS = [12,1,2];
 
-function isG1Week(){ return G1_WEEKS.indexOf(state.week) >= 0; }
+function isRaceMonth(m){ return RACE_MONTHS.indexOf(m) >= 0; }
+function isOffMonth(m){ return OFF_MONTHS.indexOf(m) >= 0; }
+function isG1Month(m){ return !!G1_MONTHS[m]; }
+function g1Label(m,w){ return G1_WEEKS[m + '_' + w] || null; }
+
+// 天候カテゴリ(季節に応じ確率を変える。日ごとの予報生成にも使用)
+var TENDENCY_LABEL = { sunny:'晴れ', unsettled:'ぐずつく', rainy:'雨', hot:'猛暑', cold:'寒波' };
+var TENDENCY_ICON = { sunny:'☀', unsettled:'☁', rainy:'☂', hot:'🔥', cold:'❄' };
+// 月ごとの天候傾向内訳(発生し得るカテゴリと重み) — 夏は晴れ・猛暑多め、梅雨6月/秋雨9-10月は雨多め、冬は雪/寒波
+function tendencyOptions(m){
+  if (m===6) return [['sunny',0.15],['unsettled',0.30],['rainy',0.55]]; // 梅雨
+  if (m===9 || m===10) return [['sunny',0.25],['unsettled',0.30],['rainy',0.45]]; // 秋雨/台風シーズン
+  if (COLDWAVE_MONTHS.indexOf(m)>=0) return [['sunny',0.35],['unsettled',0.25],['rainy',0.15],['cold',0.25]];
+  if (HEATWAVE_MONTHS.indexOf(m)>=0) return [['sunny',0.40],['unsettled',0.20],['rainy',0.15],['hot',0.25]];
+  return [['sunny',0.40],['unsettled',0.35],['rainy',0.25]];
+}
+function pickTendency(m){
+  var opts = tendencyOptions(m);
+  var r = Math.random(), acc = 0;
+  for (var i=0;i<opts.length;i++){ acc += opts[i][1]; if (r<=acc) return opts[i][0]; }
+  return opts[opts.length-1][0];
+}
+// 週あたりの降雨日数(旧:月次の目安1/4)
+function rainDaysForWeek(cat){
+  switch(cat){
+    case 'rainy': return 2 + Math.floor(Math.random()*3); // 2-4
+    case 'unsettled': return 1 + Math.floor(Math.random()*2); // 1-2
+    case 'hot': return Math.floor(Math.random()*2); // 0-1
+    case 'cold': return Math.floor(Math.random()*2); // 0-1
+    default: return Math.floor(Math.random()*2); // sunny 0-1
+  }
+}
+// 週次天候の基礎効果(含水率・クッション値)。旧月次値のおよそ1/4。降雨日数の効果は別途加算。
+var TENDENCY_EFFECT_WEEK = {
+  sunny:     { moist:-4.5,  cushion:-0.0625 },
+  unsettled: { moist:-1.5,  cushion:-0.0125 },
+  rainy:     { moist:+5.0,  cushion:+0.05 },
+  hot:       { moist:-6.25, cushion:-0.0875 },
+  cold:      { moist:-2.5,  cushion:-0.0375 }
+};
 
 // 作業アクション定義（ボタン表記・効果プレビュー・実処理が全て参照する単一の定義）
+// コストは週次ベース(旧月次コスト÷1.25)。効果量は週次化(作業機会4倍)に合わせて再調整。
 var ACTIONS = {
-  water:    { key:'water',    label:'散水',       p:2, cost:8,  moistAmt:12, cushionAmt:0.1 },
-  mow:      { key:'mow',      label:'芝刈り',     p:2, cost:4,  grassAmt:2.0 },
-  aerate:   { key:'aerate',   label:'エアレーション', p:3, cost:20, cushionAmt:0.5, rootAmt:4, dmgSideAmt:2 },
-  fert:     { key:'fert',     label:'肥料',       p:2, cost:10, rootAmt:8, grassAmt:1.0 },
-  repair:   { key:'repair',   label:'目土・補修', p:2, cost:15, dmgAmt:35, rootAmt:2 },
-  harrow:   { key:'harrow',   label:'ハロー掛け', p:2, cost:6,  dartDmgAmt:30, sandAmt:0.2 },
-  sandfill: { key:'sandfill', label:'砂補充',     p:2, cost:12, sandAmt:0.6 },
-  rail:     { key:'rail',     label:'内柵移動',   p:3, cost:20 }
+  water:     { key:'water',     label:'散水',       p:2, cost:8,  moistAmt:6,  cushionAmt:0.05 },
+  mow:       { key:'mow',       label:'芝刈り',     p:2, cost:4,  grassAmt:1.0 },
+  aerate:    { key:'aerate',    label:'エアレーション', p:3, cost:20, cushionAmt:0.3, rootAmt:2.5, dmgSideAmt:1.5 },
+  fert:      { key:'fert',      label:'肥料',       p:2, cost:10, rootAmt:4,  grassAmt:0.6 },
+  repair:    { key:'repair',    label:'目土・補修', p:2, cost:15, dmgAmt:18,  rootAmt:1.5 },
+  harrow:    { key:'harrow',    label:'ハロー掛け', p:2, cost:6,  dartDmgAmt:16, sandAmt:0.12 },
+  sandfill:  { key:'sandfill',  label:'砂補充',     p:2, cost:12, sandAmt:0.4, sandTon:15 },
+  overseed:  { key:'overseed',  label:'オーバーシード', p:3, cost:32 },
+  antifreeze:{ key:'antifreeze',label:'凍結防止剤', p:1, cost:8 },
+  sandmix:   { key:'sandmix',   label:'クッション砂入替', p:3, cost:28, sandTon:80, mixShift:0.7, cushionSandAmt:0.5, siltAmt:-40, wearAmt:-40 },
+  sandwash:  { key:'sandwash',  label:'クッション砂洗浄', p:4, cost:40 },
+  rail:      { key:'rail',      label:'内柵移動',   p:3, cost:20 },
+  railreset: { key:'railreset', label:'内柵リセット', p:3, cost:24 }
 };
 
 var STAFF_DEFS = {
-  water: { key:'water', name:'散水名人・雨宮', wage:6, desc:'散水・ハロー掛けの効果+30%、それらの大成功率+10%' },
-  turf:  { key:'turf',  name:'芝博士・緑川',   wage:7, desc:'毎週 根+3、肥料・目土補修の効果+30%' },
-  vet:   { key:'vet',   name:'ベテラン職人・土屋', wage:8, desc:'毎週の作業Pが+2' }
+  water: { key:'water', name:'散水名人・雨宮', wage:24, desc:'散水・ハロー掛けの効果+30%、それらの大成功率+10%' },
+  turf:  { key:'turf',  name:'芝博士・緑川',   wage:28, desc:'毎週 根+0.75、肥料・目土補修の効果+30%' },
+  vet:   { key:'vet',   name:'ベテラン職人・土屋', wage:32, desc:'毎週の作業Pが+2' }
 };
 
 var EVENT_LABELS = {
   typhoon: '台風接近', heatwave: '猛暑', media: 'メディア取材',
-  pricehike: '資材高騰', inspection: 'JRA査察', goodweather: '好天続き'
+  pricehike: '資材高騰', inspection: 'JRA査察', goodweather: '好天続き', coldwave: '寒波襲来'
 };
 
 function staffEffectMult(actionKey){
   var m = 1;
+  if (!state) return m;
   if ((actionKey==='water'||actionKey==='harrow') && state.staff.water) m *= 1.3;
   if ((actionKey==='fert'||actionKey==='repair') && state.staff.turf) m *= 1.3;
   return m;
 }
 function staffCritBonus(actionKey){
+  if (!state) return 0;
   if ((actionKey==='water'||actionKey==='harrow') && state.staff.water) return 0.10;
   return 0;
 }
@@ -389,20 +495,34 @@ function previewText(key){
     case 'fert':     return '肥料: 根の健康+' + (a.rootAmt*mult).toFixed(1) + '・芝丈+' + (a.grassAmt*mult).toFixed(1) + 'cm' + tag;
     case 'repair':   return '目土・補修: 選択ゾーンの全セル傷み-' + (a.dmgAmt*mult).toFixed(1) + '・根+' + a.rootAmt + tag;
     case 'harrow':   return 'ハロー掛け: ダート全セル傷み-' + (a.dartDmgAmt*mult).toFixed(0) + '・砂厚+' + (a.sandAmt*mult).toFixed(1) + tag;
-    case 'sandfill': return '砂補充: 砂厚+' + a.sandAmt.toFixed(1);
-    case 'rail':     return '内柵移動: 保護レーンを切り替える（戻せません）';
+    case 'sandfill': return '砂補充: 砂厚+' + a.sandAmt.toFixed(1) + '（砂' + a.sandTon + 't消費）' + (sandQuotaOk(a.sandTon)?'':'【現在使用不可：産地枠不足】');
+    case 'overseed': return 'オーバーシード: 洋芝を導入し冬の芝を守る（9〜11月のみ・翌年6月頃自然消滅）' + (canOverseed()?'':'【現在使用不可：9〜11月のみ】');
+    case 'antifreeze':return '凍結防止剤: 今後4週間、ダート凍結リスクを防止（11〜2月のみ）' + (canAntifreeze()?'':'【現在使用不可：11〜2月のみ】');
+    case 'sandmix':   return 'クッション砂入替: 産地構成比を配分へ大きく寄せる・シルト化-40・砂摩耗-40・砂厚+0.5（整備月のみ・砂' + a.sandTon + 't消費）' + (canSandMix()?(sandQuotaOk(a.sandTon)?'':'【現在使用不可：産地枠不足】'):'【現在使用不可：整備月のみ】');
+    case 'sandwash':  return 'クッション砂洗浄: シルト化・砂摩耗をリセット（整備月のみ）' + (canSandWash()?'':'【現在使用不可：整備月のみ】');
+    case 'rail':     return '内柵移動: 保護レーンを切り替える（戻せません）' + (canRail()?'':'【現在使用不可：開催消化数不足】');
+    case 'railreset':return '内柵リセット: Aコースへ戻し、保護されていたレーンの傷みを全回復（年1回・整備月のみ）' + (canRailReset()?'':'【現在使用不可：整備月・年1回・Aコース以外】');
   }
   return '';
 }
 
 var state = null;
 
-function newGame(){
+function computeInitialSpeeds(){
+  state.turfSpeed = computeTurfSpeed();
+  state.dartSpeed = computeDartSpeed();
+}
+
+function newGame(contractYears){
   state = {
+    year: 1,
+    month: 1,
     week: 1,
+    contractYears: contractYears || 3,
     course: 'A',
-    budget: 240,
-    ap: 8,
+    budget: 200,
+    ap: 6,
+    apMax: 6,
     moist: 45,
     grass: 14,
     root: 85,
@@ -410,54 +530,99 @@ function newGame(){
     sand: 9.0,
     safety: 100,
     selectedZone: 0,
+    tendency: 'sunny',
+    rainDays: 0,
     forecast: [],
+    actualDays: [],
+    weekIndex: 0,
     log: [],
-    clockScores: [],
-    fairScores: [],
+    monthScores: [], // {year,month,score,rank,isG1}
+    yearRecords: [], // {year,avg,rank,bonus}
     breakdownCount: 0,
     staff: { water:false, turf:false, vet:false },
     repBonus: 0,
     dartWaterFlag: false,
-    weekCostMult: 1,
+    costMult: 1,
     heatwaveActive: false,
     heatwaveNightWater: false,
+    coldwaveActive: false,
     inspectionPending: false,
-    activeEvent: null
+    activeEvent: null,
+    raceMonthsElapsed: 0,
+    railResetUsedThisYear: false,
+    turfSpeed: 0,
+    dartSpeed: 0,
+    prevTurfSpeed: 0,
+    prevDartSpeed: 0,
+    lastFair: 100,
+    lastClock: 100,
+    lastStability: 100,
+    lastDelta: 0,
+    overseed: false,
+    overseedExpireYear: null,
+    antifreezeAppliedWeek: null,
+    antifreezeStickyTriggered: false,
+    freezeBreakdownBonus: 0,
+    dartSticky: 0,
+    sandBlend: { aomori:50, albany:50 },
+    sandMix: { aomori:50, albany:50 },
+    sandQuota: { aomori:500, albany:500 },
+    sandBlendStrictMonths: 0, // 単位:週
+    silt: 0,
+    sandWear: 0,
+    missions: [],
+    monthBuffer: { fairList:[], clockList:[], stabilityList:[], anyStabilityPenalty:false },
+    gameOver: false
   };
   cells.forEach(function(c){ c.dmg = Math.random()*8; });
   dartCells.forEach(function(c){ c.dmg = Math.random()*8; });
-  genForecast();
-  addLog('東京競馬場 馬場造園課へようこそ。週' + state.week + '(' + WEEK_LABELS[state.week] + ')が始まります。');
-  maybeTriggerEvent();
-  render();
+  computeInitialSpeeds();
+  state.prevTurfSpeed = state.turfSpeed;
+  state.prevDartSpeed = state.dartSpeed;
+  genWeekWeather();
+  addLog('東京競馬場 馬場造園課へようこそ。契約' + state.contractYears + '年間の馬場管理が始まる。1年目1月第1週。');
+  weekStartFlow();
 }
 
-function pickWeighted(){
-  var r = Math.random(), acc = 0;
-  for (var i=0;i<WEATHER_CATS.length;i++){
-    acc += WEATHER_PROB[i];
-    if (r <= acc) return i;
+function shuffleIndices(n){
+  var arr = [];
+  for (var i=0;i<n;i++) arr.push(i);
+  for (var i2=arr.length-1;i2>0;i2--){
+    var j = Math.floor(Math.random()*(i2+1));
+    var tmp = arr[i2]; arr[i2]=arr[j]; arr[j]=tmp;
   }
-  return WEATHER_CATS.length-1;
+  return arr;
 }
 
-function genForecast(){
-  state.forecast = [];
-  for (var d=0; d<7; d++){
-    var fIdx = pickWeighted();
-    var aIdx = fIdx;
-    if (Math.random() < 0.2){
-      var dir = Math.random()<0.5 ? -1 : 1;
-      aIdx = Math.min(WEATHER_CATS.length-1, Math.max(0, fIdx+dir));
-    }
-    state.forecast.push({ forecast: WEATHER_CATS[fIdx], actual: WEATHER_CATS[aIdx] });
-  }
+function genWeekWeather(){
+  state.tendency = pickTendency(state.month);
+  var rainCount = Math.min(7, rainDaysForWeek(state.tendency));
+  var days = [];
+  for (var i=0;i<7;i++) days.push(state.tendency);
+  var idxs = shuffleIndices(7).slice(0, rainCount);
+  idxs.forEach(function(i){ days[i] = 'rainy'; });
+  state.forecast = days.map(function(c){ return { cat: c }; });
+  state.actualDays = state.forecast.map(function(f){
+    if (Math.random() < 0.8) return f.cat;
+    return pickTendency(state.month);
+  });
+  state.rainDays = state.actualDays.filter(function(c){ return c==='rainy'; }).length;
+}
+
+function applyWeekWeather(){
+  var eff = TENDENCY_EFFECT_WEEK[state.tendency];
+  state.moist += eff.moist + state.rainDays * 1.5;
+  state.cushion += eff.cushion + state.rainDays * 0.02;
+  if (state.heatwaveActive){ state.moist -= 5; }
+  if (state.coldwaveActive){ state.moist -= 2; state.cushion -= 0.025; }
+  state.moist = clamp(state.moist, 10, 95);
+  state.cushion = clamp(state.cushion, 7.0, 12.0);
 }
 
 function addLog(msg, cls){
   var c = cls === true ? 'crit' : (cls || null);
   state.log.unshift({ msg: msg, cls: c });
-  if (state.log.length > 50) state.log.length = 50;
+  if (state.log.length > 60) state.log.length = 60;
 }
 
 /* ===================== コース(内柵)・レーン使用状況 ===================== */
@@ -473,14 +638,90 @@ function protectedLanes(course){
   return ['inner','mid'];
 }
 function canRail(){
-  if (state.course==='A') return state.week>=3;
-  if (state.course==='B') return state.week>=6;
+  if (!state) return false;
+  if (state.course==='A') return state.raceMonthsElapsed>=3;
+  if (state.course==='B') return state.raceMonthsElapsed>=6;
   return false;
+}
+function canRailReset(){
+  if (!state) return false;
+  return isOffMonth(state.month) && !state.railResetUsedThisYear && state.course !== 'A';
+}
+
+/* ===================== 解禁条件・砂産地枠 ===================== */
+
+function canOverseed(){ return !!state && [9,10,11].indexOf(state.month)>=0; }
+function canAntifreeze(){ return !!state && [11,12,1,2].indexOf(state.month)>=0; }
+function canSandMix(){ return !!state && isOffMonth(state.month); }
+function canSandWash(){ return !!state && isOffMonth(state.month); }
+
+function sandQuotaOk(tons){
+  if (!state) return false;
+  var needA = tons * state.sandBlend.aomori/100;
+  var needB = tons * state.sandBlend.albany/100;
+  return state.sandQuota.aomori >= needA - 1e-9 && state.sandQuota.albany >= needB - 1e-9;
+}
+function consumeSandQuota(tons){
+  var needA = tons * state.sandBlend.aomori/100;
+  var needB = tons * state.sandBlend.albany/100;
+  state.sandQuota.aomori = Math.max(0, state.sandQuota.aomori - needA);
+  state.sandQuota.albany = Math.max(0, state.sandQuota.albany - needB);
+}
+
+function canDoAction(key){
+  if (!state || state.gameOver) return false;
+  var a = ACTIONS[key];
+  if (!canAfford(a)) return false;
+  switch(key){
+    case 'overseed':  return canOverseed();
+    case 'antifreeze': return canAntifreeze();
+    case 'sandfill':  return sandQuotaOk(a.sandTon);
+    case 'sandmix':   return canSandMix() && sandQuotaOk(a.sandTon);
+    case 'sandwash':  return canSandWash();
+    case 'rail':      return canRail();
+    case 'railreset': return canRailReset();
+    default: return true;
+  }
+}
+
+/* ===================== 馬場傾向(パワー⇄スピード) ===================== */
+
+function turfSpeedAddends(){
+  var arr = [
+    (45 - state.moist) * 0.8,
+    (9.8 - state.cushion) * 8,
+    (14 - state.grass) * 2
+  ];
+  if (state.overseed) arr.push(-15);
+  return arr;
+}
+function computeTurfSpeed(){
+  var sum = turfSpeedAddends().reduce(function(a,b){ return a+b; }, 0);
+  return clamp(sum, -100, 100);
+}
+function dartSpeedAddends(){
+  var moistAdd = (state.moist>=40 && state.moist<=70) ? 15 : (state.moist<40 ? -10 : 0);
+  var arr = [
+    (9.0 - state.sand) * 25,
+    moistAdd,
+    -dartAvgDmg() * 0.4,
+    -state.silt * 0.5
+  ];
+  if (state.moist > 60){
+    arr.push((state.sandMix.albany/100) * 8);   // アルバニーは湿ると速い
+    arr.push(-(state.sandMix.aomori/100) * 12); // 青森は湿るとダイレクトにパワー馬場化
+  }
+  if (state.dartSticky > 0) arr.push(-25);
+  return arr;
+}
+function computeDartSpeed(){
+  var sum = dartSpeedAddends().reduce(function(a,b){ return a+b; }, 0);
+  return clamp(sum, -100, 100);
 }
 
 /* ===================== 作業アクション判定 ===================== */
 
-function actionCost(a){ return a.cost * (state.weekCostMult||1); }
+function actionCost(a){ return a.cost * (state.costMult||1); }
 function canAfford(a){ return state.ap >= a.p && state.budget >= actionCost(a); }
 
 function rollOutcome(actionKey){
@@ -499,6 +740,7 @@ function logOutcome(label, outcome, detail){
 }
 
 function doWater(){
+  if (!state || state.gameOver) return;
   var a = ACTIONS.water;
   if (!canAfford(a)) return;
   state.ap -= a.p; state.budget -= actionCost(a);
@@ -513,6 +755,7 @@ function doWater(){
   render();
 }
 function doMow(){
+  if (!state || state.gameOver) return;
   var a = ACTIONS.mow;
   if (!canAfford(a)) return;
   state.ap -= a.p; state.budget -= actionCost(a);
@@ -523,6 +766,7 @@ function doMow(){
   render();
 }
 function doAerate(){
+  if (!state || state.gameOver) return;
   var a = ACTIONS.aerate;
   if (!canAfford(a)) return;
   state.ap -= a.p; state.budget -= actionCost(a);
@@ -537,6 +781,7 @@ function doAerate(){
   render();
 }
 function doFert(){
+  if (!state || state.gameOver) return;
   var a = ACTIONS.fert;
   if (!canAfford(a)) return;
   state.ap -= a.p; state.budget -= actionCost(a);
@@ -550,6 +795,7 @@ function doFert(){
   render();
 }
 function doRepair(){
+  if (!state || state.gameOver) return;
   var a = ACTIONS.repair;
   if (!canAfford(a)) return;
   state.ap -= a.p; state.budget -= actionCost(a);
@@ -569,6 +815,7 @@ function doRepair(){
   render();
 }
 function doHarrow(){
+  if (!state || state.gameOver) return;
   var a = ACTIONS.harrow;
   if (!canAfford(a)) return;
   state.ap -= a.p; state.budget -= actionCost(a);
@@ -582,21 +829,106 @@ function doHarrow(){
   render();
 }
 function doSandfill(){
+  if (!state || state.gameOver) return;
   var a = ACTIONS.sandfill;
-  if (!canAfford(a)) return;
+  if (!canDoAction('sandfill')) return;
   state.ap -= a.p; state.budget -= actionCost(a);
   var outcome = rollOutcome('sandfill');
-  var sandAmt = a.sandAmt * outcomeMult(outcome);
+  var mult = outcomeMult(outcome);
+  var sandAmt = a.sandAmt * mult;
   state.sand = clamp(state.sand + sandAmt, 7.0, 11.0);
-  logOutcome(a.label, outcome, '砂厚+' + sandAmt.toFixed(1));
+  consumeSandQuota(a.sandTon);
+  var w = Math.min(1, 0.15 * mult);
+  state.sandMix.aomori = state.sandMix.aomori + (state.sandBlend.aomori - state.sandMix.aomori)*w;
+  state.sandMix.albany = 100 - state.sandMix.aomori;
+  logOutcome(a.label, outcome, '砂厚+' + sandAmt.toFixed(1) + '（砂' + a.sandTon + 't消費）');
+  render();
+}
+function doOverseed(){
+  if (!state || state.gameOver) return;
+  var a = ACTIONS.overseed;
+  if (!canDoAction('overseed')) return;
+  state.ap -= a.p; state.budget -= actionCost(a);
+  var outcome = rollOutcome('overseed');
+  if (outcome==='fail'){
+    logOutcome(a.label, outcome, '洋芝の定着に失敗した');
+  } else {
+    state.overseed = true;
+    state.overseedExpireYear = state.year + 1;
+    var bonus = outcome==='crit' ? 5 : 0;
+    if (bonus) state.root = Math.min(100, state.root + bonus);
+    logOutcome(a.label, outcome, '洋芝オーバーシードを実施した（翌年6月頃まで持続）' + (bonus?'・根+5':''));
+  }
+  render();
+}
+function doAntifreeze(){
+  if (!state || state.gameOver) return;
+  var a = ACTIONS.antifreeze;
+  if (!canDoAction('antifreeze')) return;
+  state.ap -= a.p; state.budget -= actionCost(a);
+  var outcome = rollOutcome('antifreeze');
+  if (outcome==='fail'){
+    logOutcome(a.label, outcome, '散布が不十分だった');
+  } else {
+    state.antifreezeAppliedWeek = state.weekIndex;
+    state.antifreezeStickyTriggered = false;
+    logOutcome(a.label, outcome, '凍結防止剤を散布した（散布週を含む4週間有効）');
+  }
+  render();
+}
+function doSandmix(){
+  if (!state || state.gameOver) return;
+  var a = ACTIONS.sandmix;
+  if (!canDoAction('sandmix')) return;
+  state.ap -= a.p; state.budget -= actionCost(a);
+  var outcome = rollOutcome('sandmix');
+  var mult = outcomeMult(outcome);
+  consumeSandQuota(a.sandTon);
+  var shift = Math.min(1, a.mixShift * mult);
+  state.sandMix.aomori = state.sandMix.aomori + (state.sandBlend.aomori - state.sandMix.aomori)*shift;
+  state.sandMix.albany = 100 - state.sandMix.aomori;
+  state.silt = clamp(state.silt + a.siltAmt*mult, 0, 100);
+  state.sandWear = clamp(state.sandWear + a.wearAmt*mult, 0, 100);
+  state.sand = clamp(state.sand + a.cushionSandAmt*mult, 7.0, 11.0);
+  logOutcome(a.label, outcome, '砂を入替え、構成比を配分へ寄せた（青森' + state.sandMix.aomori.toFixed(0) + '% / アルバニー' + state.sandMix.albany.toFixed(0) + '%）');
+  render();
+}
+function doSandwash(){
+  if (!state || state.gameOver) return;
+  var a = ACTIONS.sandwash;
+  if (!canDoAction('sandwash')) return;
+  state.ap -= a.p; state.budget -= actionCost(a);
+  var outcome = rollOutcome('sandwash');
+  if (outcome==='fail'){
+    state.silt = clamp(state.silt*0.5, 0, 100);
+    state.sandWear = clamp(state.sandWear*0.5, 0, 100);
+    logOutcome(a.label, outcome, '洗浄が不十分だった（効果半減）');
+  } else {
+    state.silt = 0; state.sandWear = 0;
+    logOutcome(a.label, outcome, '砂を洗浄しリフレッシュした');
+  }
   render();
 }
 function doRail(){
+  if (!state || state.gameOver) return;
   var a = ACTIONS.rail;
   if (!canRail() || !canAfford(a)) return;
   state.ap -= a.p; state.budget -= actionCost(a);
   state.course = state.course==='A' ? 'B' : 'C';
   addLog('内柵を移動し、' + state.course + 'コースに変更した（戻せません）。', 'crit');
+  render();
+}
+function doRailReset(){
+  if (!state || state.gameOver) return;
+  var a = ACTIONS.railreset;
+  if (!canRailReset() || !canAfford(a)) return;
+  state.ap -= a.p; state.budget -= actionCost(a);
+  var prot = protectedLanes(state.course);
+  cells.forEach(function(c){ if (prot.indexOf(c.lane)>=0) c.dmg = 0; });
+  state.course = 'A';
+  state.raceMonthsElapsed = 0;
+  state.railResetUsedThisYear = true;
+  addLog('内柵をAコースへリセットし、保護されていたレーンの傷みを全回復した。', 'crit');
   render();
 }
 
@@ -608,19 +940,21 @@ function hiredCount(){
   return n;
 }
 function hireStaff(key){
+  if (!state || state.gameOver) return;
   if (state.staff[key] || hiredCount()>=2) return;
   state.staff[key] = true;
-  addLog(STAFF_DEFS[key].name + 'を雇用した。（週給' + STAFF_DEFS[key].wage + '万円）');
+  addLog(STAFF_DEFS[key].name + 'を雇用した。（月給' + STAFF_DEFS[key].wage + '万円）');
   render();
 }
 function fireStaff(key){
+  if (!state || state.gameOver) return;
   if (!state.staff[key]) return;
   state.staff[key] = false;
   addLog(STAFF_DEFS[key].name + 'を解雇した。');
   render();
 }
 
-/* ===================== 週末シミュレーション ===================== */
+/* ===================== 週次シミュレーション ===================== */
 
 function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
 
@@ -642,15 +976,6 @@ function usedMaxDmg(){
   return m;
 }
 
-function weatherEffect(cat){
-  if (cat==='sun'){ state.moist -= 7; state.cushion -= 0.1; }
-  else if (cat==='cloud'){ state.moist -= 3; }
-  else if (cat==='rain'){ state.moist += 15; state.cushion += 0.15; }
-  else if (cat==='storm'){ state.moist += 28; state.cushion += 0.3; }
-  state.moist = clamp(state.moist, 10, 95);
-  state.cushion = clamp(state.cushion, 7.0, 12.0);
-}
-
 function conditionLabel(){
   if (state.moist < 45) return '良';
   if (state.moist < 60) return '稍重';
@@ -667,8 +992,8 @@ function laneWeights(course, innerCell){
   return { inner:0, mid:0, outer:1.0 };
 }
 
-function raceWear(){
-  var g1Mult = isG1Week() ? 1.3 : 1.0;
+// weekMult: そのレース週の摩耗係数(G1週は呼び出し側で1.3倍済み)
+function raceWear(weekMult){
   var races = 12;
   for (var seg=0; seg<NSEG; seg++){
     var sp = samplePoints[seg];
@@ -685,23 +1010,22 @@ function raceWear(){
       var grassMult = state.grass < 10 ? 1.2 : 1;
       var rootMult = state.root < 50 ? 1.3 : 1;
       var rnd = 0.7 + Math.random()*0.6;
-      var add = 0.7 * races * laneCornerMult * climbMult * laneWeight * moistMult * grassMult * rootMult * rnd * g1Mult;
+      var add = 0.7 * races * laneCornerMult * climbMult * laneWeight * moistMult * grassMult * rootMult * rnd * weekMult;
       c.dmg = clamp(c.dmg + add, 0, 100);
     });
   }
 }
 
-function dartRaceWear(){
-  var g1Mult = isG1Week() ? 1.3 : 1.0;
+function dartRaceWear(weekMult){
   var dryMult = (!state.dartWaterFlag && state.moist < 40) ? 1.2 : 1.0;
   dartCells.forEach(function(dc){
     var sp = samplePoints[dc.seg];
     var cornerMult = 1 + sp.cornerFactor*0.8;
     var rnd = 0.7 + Math.random()*0.6;
-    var add = 0.5 * 10 * rnd * cornerMult * dryMult * g1Mult;
+    var add = 0.5 * 10 * rnd * cornerMult * dryMult * weekMult;
     dc.dmg = clamp(dc.dmg + add, 0, 100);
   });
-  state.sand = clamp(state.sand - 0.15, 7.0, 11.0);
+  state.sand = clamp(state.sand - 0.15*weekMult, 7.0, 11.0);
   state.dartWaterFlag = false;
 }
 
@@ -723,14 +1047,16 @@ function checkBreakdown(dayLabel){
   var used = usedLanes(state.course);
   var bogAvg = laneAvg(used[0]);
   var mDmg = usedMaxDmg();
-  var p = 0.04
-    + (state.cushion < 8.3 ? 0.06 : 0)
-    + (state.moist > 75 ? 0.05 : 0)
-    + (bogAvg > 55 ? 0.05 : 0)
-    + (mDmg > 80 ? 0.04 : 0)
-    + (state.sand < 8.0 ? 0.04 : 0);
+  var p = 0.035
+    + (state.cushion < 8.3 ? 0.03 : 0)
+    + (state.moist > 75 ? 0.025 : 0)
+    + (bogAvg > 55 ? 0.025 : 0)
+    + (mDmg > 80 ? 0.02 : 0)
+    + (state.sand < 8.0 ? 0.02 : 0)
+    + (state.sandWear > 60 ? 0.015 : 0)
+    + (state.freezeBreakdownBonus || 0);
   if (Math.random() < p){
-    state.safety = clamp(state.safety - 22, 0, 100);
+    state.safety = clamp(state.safety - 16, 0, 100);
     state.breakdownCount++;
     addLog(dayLabel + 'で競走中止が発生。硬さ・荒れが要因か。', 'crit');
   }
@@ -746,6 +1072,12 @@ function evalClock(){
   else { label='タフ(批判)'; score=50; }
   if (state.sand < 8.0) label += '・ダート高速(批判)';
   if (state.sand > 10.0) score -= 10;
+  if (state.silt > 50) score -= 8;
+  if (state.dartSticky > 0) score -= 10;
+  if (state.moist > 60){
+    if (state.sandMix.aomori >= 60) score -= 6;  // 青森多めで湿ると時計かかる
+    if (state.sandMix.albany >= 60) score += 4;  // アルバニー多めで湿っても時計出る
+  }
   score = clamp(score, 0, 100);
   return { label: label, score: score };
 }
@@ -760,51 +1092,234 @@ function evalFairness(){
   }
   var score = clamp(100 - Math.max(0, d-8)*2.2, 0, 100);
   if (dartAvgDmg() > 50) score = clamp(score - 10, 0, 100);
+  if (state.silt > 60) score = clamp(score - 8, 0, 100);
   if (Math.abs(d) > 25) addLog('騎手コメント: 「内は掘れて走りにくい」');
   return { score: score, diff: d };
 }
 
-function weightedAvg(list){
+function evalManagement(){
+  var used = usedLanes(state.course);
+  var sum = 0; used.forEach(function(l){ sum += laneAvg(l); });
+  var turfCond = clamp(100 - (sum/used.length), 0, 100);
+  var dartCond = clamp(100 - dartAvgDmg(), 0, 100);
+  var sandCond = clamp(100 - Math.abs(state.sand-9.0)*40, 0, 100);
+  var avg = (turfCond + dartCond + sandCond) / 3;
+  return { turfCond:turfCond, dartCond:dartCond, sandCond:sandCond, avg:avg };
+}
+
+function avgList(list){
+  if (!list.length) return 100;
+  var s=0; list.forEach(function(v){ s+=v; });
+  return s/list.length;
+}
+function weightedG1Avg(list){
+  if (!list.length) return 100;
   var sw=0, sc=0;
   list.forEach(function(item){
-    var w = G1_WEEKS.indexOf(item.week)>=0 ? 2 : 1;
+    var w = item.isG1 ? 2 : 1;
+    sw += w; sc += item.score*w;
+  });
+  return sw ? sc/sw : 0;
+}
+function weightedYearAvg(list){
+  var sw=0, sc=0;
+  list.forEach(function(item){
+    var w = item.isG1 ? 2 : 1;
     sw += w; sc += item.score*w;
   });
   return sw ? sc/sw : 0;
 }
 
-function resetWeekFlags(){
-  state.weekCostMult = 1;
+function scoreToRank(score){
+  if (score >= 92) return 'S';
+  if (score >= 83) return 'A';
+  if (score >= 70) return 'B';
+  if (score >= 55) return 'C';
+  return 'D';
+}
+function rankBudgetBonus(rank){
+  switch(rank){ case 'S': return 40; case 'A': return 30; case 'B': return 18; case 'C': return 8; default: return 0; }
+}
+
+function resetMonthFlags(){
+  state.costMult = 1;
   state.heatwaveActive = false;
   state.heatwaveNightWater = false;
+  state.coldwaveActive = false;
   state.inspectionPending = false;
   state.activeEvent = null;
+  state.freezeBreakdownBonus = 0;
+}
+function resetMonthBuffer(){
+  state.monthBuffer = { fairList:[], clockList:[], stabilityList:[], anyStabilityPenalty:false };
+}
+
+function calLabel(){
+  var s = state.year + '年目 ' + MONTH_NAMES[state.month-1] + ' 第' + state.week + '週';
+  if (isOffMonth(state.month)) s += '(整備月)';
+  var g1 = g1Label(state.month, state.week);
+  if (g1) s += '(G1:' + g1 + ')';
+  return s;
 }
 
 function advanceWeek(){
-  addLog('--- 月〜金の管理 ---');
-  for (var d=0; d<5; d++){
-    weatherEffect(state.forecast[d].actual);
-    if (state.heatwaveActive){ state.moist = clamp(state.moist - 12, 10, 95); }
+  if (!state || state.gameOver) return;
+  var raceWeek = isRaceMonth(state.month);
+  var g1 = g1Label(state.month, state.week);
+  var prevTurf = state.prevTurfSpeed, prevDart = state.prevDartSpeed;
+
+  addLog('--- ' + calLabel() + ' の管理 ---');
+  applyWeekWeather();
+  addLog('天候「' + TENDENCY_LABEL[state.tendency] + '」・実降雨' + state.rainDays + '日/週を適用した。');
+
+  // 凍結防止剤 有効判定・粘着質化・凍結リスク
+  var afActive = state.antifreezeAppliedWeek !== null && (state.weekIndex - state.antifreezeAppliedWeek) < 4;
+  if (!afActive) state.antifreezeStickyTriggered = false;
+  if ([11,12,1,2].indexOf(state.month)>=0){
+    if (afActive && state.rainDays>=2 && !state.antifreezeStickyTriggered){
+      state.dartSticky = 2;
+      state.antifreezeStickyTriggered = true;
+      addLog('凍結防止剤が雨で粘着質に。パワー馬場になった（効果2週間）', 'crit');
+    }
+    if ([12,1,2].indexOf(state.month)>=0 && !afActive){
+      var freezeRisk = state.coldwaveActive || (state.tendency==='cold' && state.rainDays<1);
+      if (freezeRisk && Math.random()<0.09){
+        dartCells.forEach(function(dc){ dc.dmg = clamp(dc.dmg+15, 0, 100); });
+        state.freezeBreakdownBonus = 0.05;
+        addLog('ダートが凍結した。馬場全体の偏りが悪化した。', 'crit');
+      }
+    }
   }
-  addLog(DAY_NAMES.slice(0,5).join('') + 'の天気を適用した。');
 
-  addLog('--- 週末レース (' + WEEK_LABELS[state.week] + ') ---');
-  raceWear();
-  dartRaceWear();
-  randomRoughSpots();
-  checkBreakdown('土曜');
-  checkBreakdown('日曜');
+  var dartDmgBeforeRace = dartAvgDmg();
+  var weekMult = 0.45 * (g1 ? 1.3 : 1.0);
+  var clockRes = null, fairRes = null;
+  if (raceWeek){
+    addLog('--- 開催 (' + calLabel() + ') ---');
+    raceWear(weekMult);
+    dartRaceWear(weekMult);
+    randomRoughSpots();
+    checkBreakdown(calLabel());
+    addLog('開催時点の馬場状態: ' + conditionLabel());
+  } else {
+    addLog('整備週につきレース摩耗なし。自然回復が進む。');
+  }
 
-  var cond = conditionLabel();
-  addLog('週末の馬場状態: ' + cond);
+  // シルト化・砂摩耗の週次進行
+  var raceWearAmt = Math.max(0, dartAvgDmg() - dartDmgBeforeRace);
+  var siltCoef = (state.sandMix.aomori/100)*1.5 + (state.sandMix.albany/100)*0.25;
+  state.sandWear = clamp(state.sandWear + (raceWeek?1.25:0.5), 0, 100);
+  var siltGain = (state.sandWear*0.06 + raceWearAmt*0.5) * siltCoef;
+  if (state.moist > 60) siltGain += (state.sandMix.aomori/100) * 0.75;
+  state.silt = clamp(state.silt + siltGain, 0, 100);
 
-  var clockRes = evalClock();
-  var fairRes = evalFairness();
-  state.clockScores.push({ week: state.week, score: clockRes.score });
-  state.fairScores.push({ week: state.week, score: fairRes.score });
-  addLog('時計評価: ' + clockRes.label + ' (スコア' + clockRes.score + ')');
-  addLog('公平性スコア: ' + fairRes.score.toFixed(1) + ' (差' + fairRes.diff.toFixed(1) + ')');
+  if (raceWeek){
+    clockRes = evalClock();
+    fairRes = evalFairness();
+    addLog('時計評価: ' + clockRes.label + ' (スコア' + clockRes.score + ')');
+    addLog('公平性スコア: ' + fairRes.score.toFixed(1) + ' (差' + fairRes.diff.toFixed(1) + ')');
+  }
+
+  // 自然変化(週次)
+  var grassBefore = state.grass;
+  var offWeek = !raceWeek;
+  var recovMult = offWeek ? 1.5 : 1.0;
+  if (raceWeek){
+    state.grass += 0.4;
+    state.root -= 1.5;
+    if (grassBefore < 10) state.root -= 1;
+    state.cushion = clamp(state.cushion - 0.175, 7.0, 12.0);
+  } else {
+    state.grass += 0.25;
+    state.root += 2;
+    state.cushion = clamp(state.cushion + 0.1, 7.0, 12.0);
+  }
+  if (state.staff.turf) state.root += 0.75;
+  if (state.heatwaveActive && !state.heatwaveNightWater) state.root -= 3;
+  var winterPenaltyMonth = [12,1,2].indexOf(state.month)>=0;
+  var overseedWinterMonth = [12,1,2,3].indexOf(state.month)>=0;
+  if (state.overseed && overseedWinterMonth){
+    state.root += 1;
+  } else if (!state.overseed && winterPenaltyMonth){
+    state.root -= 2.5;
+  }
+  state.root = clamp(state.root, 0, 100);
+  var recov = state.root*0.0075*recovMult;
+  cells.forEach(function(c){ c.dmg = clamp(c.dmg - recov, 0, 100); });
+  var protRecov = offWeek ? 4.5 : 3;
+  protectedLanes(state.course).forEach(function(lane){
+    cells.forEach(function(c){ if (c.lane===lane) c.dmg = clamp(c.dmg - protRecov, 0, 100); });
+  });
+
+  // 安全性のわずかな自然回復(整備週+2、開催週も無事故なら+0.5・故障が続いた年でも挽回の余地を残す)
+  if (offWeek){
+    state.safety = clamp(state.safety + 2, 0, 100);
+  } else {
+    state.safety = clamp(state.safety + 0.5, 0, 100);
+  }
+
+  // 馬場傾向(パワー⇄スピード)・安定性を週次に再計算
+  var newTurf = computeTurfSpeed();
+  var newDart = computeDartSpeed();
+  var deltaTurf = Math.abs(newTurf - prevTurf);
+  var deltaDart = Math.abs(newDart - prevDart);
+  var maxDelta = Math.max(deltaTurf, deltaDart);
+  var stabilityScore = clamp(100 - maxDelta*2, 0, 100);
+  var stabilityPenalty = 0;
+  var stabilityThreshold = state.sandBlendStrictMonths > 0 ? 20 : 30;
+  if (maxDelta > stabilityThreshold){
+    stabilityPenalty = 10;
+    addLog('馬場質が急変し関係者から苦言（Δ' + maxDelta.toFixed(0) + '）', 'crit');
+  }
+  state.turfSpeed = newTurf; state.dartSpeed = newDart;
+  state.prevTurfSpeed = newTurf; state.prevDartSpeed = newDart;
+  state.lastFair = fairRes ? fairRes.score : state.lastFair;
+  state.lastClock = clockRes ? clockRes.score : state.lastClock;
+  state.lastStability = stabilityScore;
+  state.lastDelta = maxDelta;
+
+  state.monthBuffer.stabilityList.push(stabilityScore);
+  if (stabilityPenalty>0) state.monthBuffer.anyStabilityPenalty = true;
+  if (raceWeek){
+    state.monthBuffer.fairList.push({ score: fairRes.score, isG1: !!g1 });
+    state.monthBuffer.clockList.push({ score: clockRes.score, isG1: !!g1 });
+  }
+
+  if (state.dartSticky > 0) state.dartSticky--;
+  if (state.sandBlendStrictMonths > 0) state.sandBlendStrictMonths--;
+  state.ap = state.apMax;
+  state.weekIndex++;
+
+  if (state.safety < 40){
+    state.gameOver = true;
+    render();
+    showFiredModal();
+    return;
+  }
+
+  if (state.week >= 4){
+    monthEndProcess();
+    return;
+  }
+
+  state.week++;
+  genWeekWeather();
+  addLog(calLabel() + 'が始まる。');
+  weekStartFlow();
+}
+
+function monthEndProcess(){
+  var mgmt = evalManagement();
+  var stabilityAvg = avgList(state.monthBuffer.stabilityList);
+  var raceMonth = isRaceMonth(state.month);
+  var monthScore;
+  if (raceMonth){
+    var fairAvg = weightedG1Avg(state.monthBuffer.fairList);
+    var clockAvg = weightedG1Avg(state.monthBuffer.clockList);
+    monthScore = state.safety*0.35 + fairAvg*0.25 + clockAvg*0.25 + stabilityAvg*0.15;
+  } else {
+    monthScore = stabilityAvg*0.4 + state.root*0.3 + mgmt.avg*0.3;
+  }
 
   if (state.inspectionPending){
     var used = usedLanes(state.course);
@@ -819,28 +1334,22 @@ function advanceWeek(){
     }
   }
 
-  // 週末後の自然変化
-  var grassBefore = state.grass;
-  state.grass += 0.8;
-  state.root -= 3;
-  if (grassBefore < 10) state.root -= 2;
-  if (state.staff.turf) state.root += 3;
-  if (state.heatwaveActive && !state.heatwaveNightWater) state.root -= 12;
-  state.root = clamp(state.root, 0, 100);
-  state.cushion = clamp(state.cushion - 0.35, 7.0, 12.0);
-  var recov = state.root*0.03;
-  cells.forEach(function(c){ c.dmg = clamp(c.dmg - recov, 0, 100); });
-  protectedLanes(state.course).forEach(function(lane){
-    cells.forEach(function(c){ if (c.lane===lane) c.dmg = clamp(c.dmg - 12, 0, 100); });
-  });
+  monthScore = clamp(monthScore - (state.monthBuffer.anyStabilityPenalty ? 10 : 0), 0, 100);
+  var monthRank = scoreToRank(monthScore);
+  var monthIsG1 = !!G1_MONTHS[state.month];
+  state.monthScores.push({ year: state.year, month: state.month, score: monthScore, rank: monthRank, isG1: monthIsG1 });
+  addLog(MONTH_NAMES[state.month-1] + ' 月次評価: ' + monthRank + ' (スコア' + monthScore.toFixed(1) + ')', true);
 
-  // スタッフ週給
+  var lastFairForMission = state.monthBuffer.fairList.length ? state.monthBuffer.fairList[state.monthBuffer.fairList.length-1].score : state.lastFair;
+  processMissions({ fairScore: lastFairForMission, stabilityPenalty: state.monthBuffer.anyStabilityPenalty ? 10 : 0 });
+
+  var rankBonus = rankBudgetBonus(monthRank);
+  var income = 10 + rankBonus;
+  addLog('予算: 固定収入+10万円、評価ボーナス+' + rankBonus + '万円');
+  state.budget += income;
+
   var totalWage = 0;
   Object.keys(state.staff).forEach(function(k){ if (state.staff[k]) totalWage += STAFF_DEFS[k].wage; });
-
-  state.ap = 8 + (state.staff.vet ? 2 : 0);
-  state.budget += 24;
-
   if (totalWage > 0){
     if (state.budget < totalWage){
       Object.keys(state.staff).forEach(function(k){
@@ -855,52 +1364,223 @@ function advanceWeek(){
     }
   }
 
-  resetWeekFlags();
+  if (raceMonth) state.raceMonthsElapsed++;
 
-  if (state.safety < 40){
-    render();
-    showFiredModal();
-    return;
+  resetMonthFlags();
+  resetMonthBuffer();
+
+  state.month++;
+  state.week = 1;
+
+  if (state.month > 12){
+    var yearScores = state.monthScores.filter(function(m){ return m.year === state.year; });
+    var yearAvg = weightedYearAvg(yearScores);
+    var yearRank = scoreToRank(yearAvg);
+    var bonus = yearAvg >= 83 ? 150 : 0;
+    if (bonus) state.budget += bonus;
+    state.yearRecords.push({ year: state.year, avg: yearAvg, rank: yearRank, bonus: bonus, months: yearScores });
+    addLog(state.year + '年目 年間平均評価: ' + yearRank + ' (' + yearAvg.toFixed(1) + ')' + (bonus?('・報奨金+' + bonus + '万円'):''), true);
+
+    var isFinalYear = state.year >= state.contractYears;
+    state.month = 1;
+    state.year++;
+    state.raceMonthsElapsed = 0;
+    state.railResetUsedThisYear = false;
+    state.sandQuota = { aomori:500, albany:500 };
+    state.safety = clamp(Math.max(state.safety, 70), 0, 100);
+
+    if (isFinalYear){
+      state.gameOver = true;
+      render();
+      showFinalModal();
+      return;
+    } else {
+      render();
+      showYearEndModal(state.yearRecords[state.yearRecords.length-1]);
+      return;
+    }
   }
 
-  if (state.week >= TOTAL_WEEKS){
-    render();
-    showResultModal();
-    return;
+  if (state.overseed && state.month===6 && state.year===state.overseedExpireYear){
+    state.overseed = false;
+    addLog('洋芝が枯れ野芝に戻った。');
   }
 
-  state.week++;
-  genForecast();
-  addLog('週' + state.week + '(' + WEEK_LABELS[state.week] + ')が始まる。');
-  maybeTriggerEvent();
+  genWeekWeather();
+  addLog(calLabel() + 'が始まる。');
+  weekStartFlow();
+}
+
+/* ===================== 週初フロー(砂配分モーダル・ミッション・イベント) ===================== */
+
+function weekStartFlow(){
+  if (state.week === 1){
+    if (state.month===1 || state.month===7){
+      showSandAllocationModal(function(){
+        maybeTriggerMission();
+        maybeTriggerEvent();
+        render();
+      });
+      return;
+    }
+    maybeTriggerMission();
+    maybeTriggerEvent();
+  }
   render();
+}
+
+function showSandAllocationModal(callback){
+  var layer = document.getElementById('modalLayer');
+  var cur = state.sandBlend.aomori;
+  var opts = [0,25,50,75,100].map(function(v){ return '<option value="'+v+'"'+(v===cur?' selected':'')+'>'+v+'%</option>'; }).join('');
+  layer.innerHTML =
+    '<div class="modal-bg"><div class="modal">' +
+      '<h2>クッション砂 産地配分決定</h2>' +
+      '<p>今後の砂作業で使用する産地の配分比率を決めてください(25%刻み)。<br>青森 残' + Math.round(state.sandQuota.aomori) + 't ／ アルバニー 残' + Math.round(state.sandQuota.albany) + 't</p>' +
+      '<label for="sandAomori">青森(黒砂)の比率</label>' +
+      '<select id="sandAomori">' + opts + '</select>' +
+      '<p style="font-size:11px;color:#8a8d97;">アルバニー(白砂)は自動的に残り比率になります。</p>' +
+      '<div id="sandWarn" style="color:#d16a5a;font-size:11px;min-height:1.4em;"></div>' +
+      '<div class="choices"><button id="sandOk">決定</button></div>' +
+    '</div></div>';
+  var sel = document.getElementById('sandAomori');
+  sel.addEventListener('change', function(){
+    var v = parseInt(sel.value, 10);
+    var diff = Math.abs(v - cur);
+    document.getElementById('sandWarn').textContent = diff>=50 ? '警告: 前回配分から' + diff + 'ポイントの急変です。8週間、安定性の判定が厳格化されます。' : '';
+  });
+  document.getElementById('sandOk').addEventListener('click', function(){
+    var v = parseInt(sel.value, 10);
+    var diff = Math.abs(v - cur);
+    state.sandBlend = { aomori: v, albany: 100-v };
+    if (diff>=50){
+      state.sandBlendStrictMonths = 8;
+      addLog('砂質の急変が時計に影響（配分変更差' + diff + 'pt、以後8週厳格化）', 'crit');
+    }
+    addLog('砂産地配分を決定: 青森' + v + '% / アルバニー' + (100-v) + '%');
+    closeModal();
+    callback();
+  });
+}
+
+/* ===================== JRAミッション ===================== */
+
+function addMonthsYM(y, m, n){
+  var total = (y*12 + (m-1)) + n;
+  var ny = Math.floor(total/12);
+  var nm = (total%12)+1;
+  return { year: ny, month: nm };
+}
+function nextG1After(y, m){
+  for (var i=1;i<=36;i++){
+    var d = addMonthsYM(y, m, i);
+    if (G1_MONTHS[d.month]) return d;
+  }
+  return null;
+}
+var MISSION_TYPES = ['gaikoku','dirtreform','g1quality','stableops'];
+function buildMission(type){
+  var iy = state.year, im = state.month;
+  if (type==='gaikoku'){
+    return { id: Math.random(), type:type, desc:'外国産馬の遠征対応: 今月末の芝含水率を50%以上に', deadlineYear:iy, deadlineMonth:im, data:{} };
+  }
+  if (type==='dirtreform'){
+    var dl = addMonthsYM(iy, im, 2);
+    return { id: Math.random(), type:type, desc:'ダート改革: 2ヶ月以内にダートspeedを+20以上に', deadlineYear:dl.year, deadlineMonth:dl.month, data:{ target: state.dartSpeed + 20 } };
+  }
+  if (type==='g1quality'){
+    var g1 = nextG1After(iy, im);
+    if (!g1) return null;
+    return { id: Math.random(), type:type, desc:'G1品質要請: 次のG1月の公平性85以上に', deadlineYear:g1.year, deadlineMonth:g1.month, data:{} };
+  }
+  if (type==='stableops'){
+    var dl2 = addMonthsYM(iy, im, 3);
+    return { id: Math.random(), type:type, desc:'安定運営要請: 3ヶ月連続で安定性ペナルティなしに', deadlineYear:dl2.year, deadlineMonth:dl2.month, data:{} };
+  }
+  return null;
+}
+function maybeTriggerMission(){
+  if (state.missions.length >= 2) return;
+  if (Math.random() >= 0.30) return;
+  var candidates = MISSION_TYPES.slice();
+  while (candidates.length){
+    var idx = Math.floor(Math.random()*candidates.length);
+    var type = candidates.splice(idx,1)[0];
+    var mission = buildMission(type);
+    if (mission){
+      state.missions.push(mission);
+      addLog('JRAミッション発令: 「' + mission.desc + '」', 'crit');
+      return;
+    }
+  }
+}
+function completeMission(m, success){
+  if (success){
+    state.budget += 30;
+    state.repBonus = clamp(state.repBonus + 5, -10, 10);
+    addLog('ミッション達成: 「' + m.desc + '」報奨+30万円・評判+5相当', 'crit');
+  } else {
+    state.budget -= 20;
+    state.repBonus = clamp(state.repBonus - 5, -10, 10);
+    addLog('ミッション失敗: 「' + m.desc + '」ペナルティ-20万円・評判-5相当', 'crit');
+  }
+}
+function processMissions(ctx){
+  var remain = [];
+  state.missions.forEach(function(m){
+    var isDeadline = (state.year===m.deadlineYear && state.month===m.deadlineMonth);
+    if (m.type==='gaikoku'){
+      if (isDeadline){ completeMission(m, state.moist>=50); return; }
+      remain.push(m); return;
+    }
+    if (m.type==='dirtreform'){
+      if (state.dartSpeed >= m.data.target){ completeMission(m, true); return; }
+      if (isDeadline){ completeMission(m, false); return; }
+      remain.push(m); return;
+    }
+    if (m.type==='g1quality'){
+      if (isDeadline){ completeMission(m, ctx.fairScore>=85); return; }
+      remain.push(m); return;
+    }
+    if (m.type==='stableops'){
+      if (ctx.stabilityPenalty>0){ completeMission(m, false); return; }
+      if (isDeadline){ completeMission(m, true); return; }
+      remain.push(m); return;
+    }
+    remain.push(m);
+  });
+  state.missions = remain;
 }
 
 /* ===================== イベント ===================== */
 
 function maybeTriggerEvent(){
-  if (Math.random() >= 0.6) return;
-  var types = ['typhoon','heatwave','media','pricehike','inspection','goodweather'];
+  if (Math.random() >= 0.5) return;
+  var types = ['media','pricehike','inspection','goodweather'];
+  if (TYPHOON_MONTHS.indexOf(state.month)>=0) types.push('typhoon');
+  if (HEATWAVE_MONTHS.indexOf(state.month)>=0) types.push('heatwave');
+  if (COLDWAVE_MONTHS.indexOf(state.month)>=0) types.push('coldwave');
   var type = types[Math.floor(Math.random()*types.length)];
   state.activeEvent = { type: type };
   if (type==='pricehike'){
-    state.weekCostMult = 1.5;
-    addLog('資材高騰: 今週の作業コストが1.5倍になった。', 'crit');
+    state.costMult = 1.5;
+    addLog('資材高騰: 今月の作業コストが1.5倍になった。', 'crit');
   } else if (type==='goodweather'){
-    state.forecast.forEach(function(f){ f.forecast='sun'; f.actual='sun'; });
-    addLog('好天が続く予報。今週はずっと晴れそうだ。');
+    addLog('好天が続く予報。今月は晴れがちになりそうだ。');
   } else if (type==='inspection'){
     state.inspectionPending = true;
-    addLog('JRA査察が入る予定。週末の馬場状態が評価される。', 'crit');
+    addLog('JRA査察が入る予定。月末の馬場状態が評価される。', 'crit');
   } else if (type==='heatwave'){
     state.heatwaveActive = true;
+  } else if (type==='coldwave'){
+    state.coldwaveActive = true;
   }
   showEventModal(type);
 }
 
 function resolveTyphoon(mitigate){
   if (mitigate){
-    var cost = 15, p = 3;
+    var cost = 19, p = 3;
     if (state.ap < p || state.budget < cost){ return; }
     state.ap -= p; state.budget -= cost;
     state.moist = clamp(state.moist+20, 10, 95);
@@ -920,7 +1600,7 @@ function resolveTyphoon(mitigate){
 }
 function resolveHeatwave(nightWater){
   if (nightWater){
-    var cost = 10;
+    var cost = 13;
     if (state.budget < cost){ return; }
     state.budget -= cost;
     state.heatwaveNightWater = true;
@@ -943,15 +1623,21 @@ function resolveMedia(accept){
   closeModal();
   render();
 }
+function resolveColdwave(){
+  addLog('寒波: 芝の凍結に注意しつつ管理を続ける。（ダートは凍結防止剤で対応可能）');
+  closeModal();
+  render();
+}
 
 function eventBody(type){
   switch(type){
     case 'typhoon': return '台風が接近している。排水対策を行うか、様子を見るか選択してください。';
     case 'heatwave': return '猛暑が続く予報。夜間散水を手配するか、通常対応とするか選択してください。';
     case 'media': return 'メディアから取材の申し込みがあった。受けるか断るか選択してください。';
-    case 'pricehike': return '資材価格が高騰している。今週の作業コストが1.5倍になる。';
-    case 'inspection': return 'JRA査察が予定されている。週末時点の馬場状態が評価される。';
-    case 'goodweather': return '好天が続く予報が出ている。今週の天気予報が全て晴れになった。';
+    case 'pricehike': return '資材価格が高騰している。今月の作業コストが1.5倍になる。';
+    case 'inspection': return 'JRA査察が予定されている。月末時点の馬場状態が評価される。';
+    case 'goodweather': return '好天が続く予報が出ている。今月は晴れがちになりそうだ。';
+    case 'coldwave': return '寒波が到来している。芝の根に負担がかかりやすい。';
   }
   return '';
 }
@@ -960,9 +1646,9 @@ function showEventModal(type){
   var layer = document.getElementById('modalLayer');
   var choices = '';
   if (type==='typhoon'){
-    choices = '<div class="choices"><button id="evA">排水対策(P3/15万円)</button><button id="evB">様子を見る</button></div>';
+    choices = '<div class="choices"><button id="evA">排水対策(P3/19万円)</button><button id="evB">様子を見る</button></div>';
   } else if (type==='heatwave'){
-    choices = '<div class="choices"><button id="evA">夜間散水手配(10万円)</button><button id="evB">通常対応</button></div>';
+    choices = '<div class="choices"><button id="evA">夜間散水手配(13万円)</button><button id="evB">通常対応</button></div>';
   } else if (type==='media'){
     choices = '<div class="choices"><button id="evA">受ける(P1)</button><button id="evB">断る</button></div>';
   } else {
@@ -970,7 +1656,7 @@ function showEventModal(type){
   }
   layer.innerHTML =
     '<div class="modal-bg"><div class="modal">' +
-      '<h2>週次イベント: ' + EVENT_LABELS[type] + '</h2>' +
+      '<h2>月初イベント: ' + EVENT_LABELS[type] + '</h2>' +
       '<p>' + eventBody(type) + '</p>' +
       choices +
     '</div></div>';
@@ -983,6 +1669,8 @@ function showEventModal(type){
   } else if (type==='media'){
     document.getElementById('evA').addEventListener('click', function(){ resolveMedia(true); });
     document.getElementById('evB').addEventListener('click', function(){ resolveMedia(false); });
+  } else if (type==='coldwave'){
+    document.getElementById('evOk').addEventListener('click', function(){ resolveColdwave(); });
   } else {
     document.getElementById('evOk').addEventListener('click', function(){ closeModal(); render(); });
   }
@@ -998,6 +1686,13 @@ var ectx = elevCanvas.getContext('2d');
 ectx.imageSmoothingEnabled = false;
 
 function dmgColor(dmg){
+  if (state && state.overseed){
+    if (dmg < 20) return '#3f6b34';
+    if (dmg < 40) return '#5c8a3a';
+    if (dmg < 60) return '#a08c3e';
+    if (dmg < 80) return '#8a6f42';
+    return '#6e523a';
+  }
   if (dmg < 20) return '#5c9448';
   if (dmg < 40) return '#7aa04a';
   if (dmg < 60) return '#a08c3e';
@@ -1175,7 +1870,7 @@ function populateZoneSelect(){
     opt.textContent = z.name;
     sel.appendChild(opt);
   });
-  sel.value = state.selectedZone;
+  sel.value = state ? state.selectedZone : 0;
 }
 
 function renderZoneInfo(){
@@ -1202,15 +1897,16 @@ function renderStaffPanel(){
     var infoDiv = document.createElement('div');
     infoDiv.innerHTML = '<div class="staffName">' + s.name + (hired?' [雇用中]':'') + '</div>' +
       '<div class="staffDesc">' + s.desc + '</div>' +
-      '<div class="staffWage">週給' + s.wage + '万円</div>';
+      '<div class="staffWage">月給' + s.wage + '万円</div>';
     row.appendChild(infoDiv);
     var btn = document.createElement('button');
     if (hired){
       btn.textContent = '解雇';
+      btn.disabled = state.gameOver;
       btn.addEventListener('click', function(){ fireStaff(key); });
     } else {
       btn.textContent = '雇用';
-      btn.disabled = hiredCount() >= 2;
+      btn.disabled = hiredCount() >= 2 || state.gameOver;
       btn.addEventListener('click', function(){ hireStaff(key); });
     }
     row.appendChild(btn);
@@ -1218,18 +1914,37 @@ function renderStaffPanel(){
   });
 }
 
+function renderMeter(markerId, valId, val){
+  var marker = document.getElementById(markerId);
+  var pct = ((val + 100) / 200) * 100;
+  marker.style.left = clamp(pct,0,100) + '%';
+  var side = val > 5 ? 'スピード寄り' : (val < -5 ? 'パワー寄り' : '中間');
+  document.getElementById(valId).textContent = val.toFixed(0) + ' (' + side + ')';
+}
+
 function render(){
-  document.getElementById('weekLabel').textContent = '週' + state.week + '/' + TOTAL_WEEKS + ' (' + WEEK_LABELS[state.week] + ')';
+  if (!state) return;
+  document.getElementById('weekLabel').textContent = calLabel() + ' [契約' + state.contractYears + '年]';
   document.getElementById('courseVal').textContent = state.course + 'コース';
   document.getElementById('budgetVal').textContent = fmtManyen(state.budget);
-  document.getElementById('apVal').textContent = state.ap + ' / ' + (8 + (state.staff.vet?2:0));
+  document.getElementById('apVal').textContent = state.ap + ' / ' + state.apMax;
+
+  var g1 = g1Label(state.month, state.week);
+  var g1Item = document.getElementById('g1Item');
+  if (g1){
+    g1Item.classList.remove('hidden');
+    document.getElementById('g1Val').textContent = g1;
+  } else {
+    g1Item.classList.add('hidden');
+  }
 
   var fc = document.getElementById('forecast');
   fc.innerHTML = '';
-  state.forecast.forEach(function(f, i){
+  DAY_NAMES.forEach(function(dn, i){
+    var f = state.forecast[i];
     var div = document.createElement('div');
-    div.className = 'fday' + (i>=5?' weekend':'');
-    div.innerHTML = '<div class="dname">' + DAY_NAMES[i] + '</div><div class="icon">' + WEATHER_ICON[f.forecast] + '</div>';
+    div.className = 'fday';
+    div.innerHTML = '<div class="dname">' + dn + '</div><div class="icon">' + TENDENCY_ICON[f.cat] + '</div>';
     fc.appendChild(div);
   });
 
@@ -1253,34 +1968,42 @@ function render(){
   document.getElementById('laneMidRow').className = 'minibar-row' + (prot.indexOf('mid')>=0?' protected':'');
   document.getElementById('laneOuterRow').className = 'minibar-row' + (prot.indexOf('outer')>=0?' protected':'');
 
-  document.getElementById('dartVal').textContent = '砂厚' + state.sand.toFixed(1) + 'cm ・ 偏り' + dartAvgDmg().toFixed(1);
+  document.getElementById('dartVal').textContent = '砂厚' + state.sand.toFixed(1) + 'cm ・偏り' + dartAvgDmg().toFixed(1) + ' ・構成 青森' + state.sandMix.aomori.toFixed(0) + '%/アルバニー' + state.sandMix.albany.toFixed(0) + '%' + (state.overseed?' ・洋芝':'') + (state.dartSticky>0?' ・粘着質':'');
+
+  document.getElementById('siltBar').style.width = clamp(state.silt,0,100) + '%';
+  document.getElementById('siltBar').style.background = state.silt>60 ? '#d16a5a' : (state.silt>30 ? '#f0c04a' : '#9fe1cb');
+  document.getElementById('wearBar').style.width = clamp(state.sandWear,0,100) + '%';
+  document.getElementById('wearBar').style.background = state.sandWear>60 ? '#d16a5a' : (state.sandWear>30 ? '#f0c04a' : '#9fe1cb');
+  document.getElementById('sandQuotaVal').textContent = '青森 残' + Math.round(state.sandQuota.aomori) + 't / アルバニー 残' + Math.round(state.sandQuota.albany) + 't';
+
+  renderMeter('turfMeterMarker','turfMeterVal', computeTurfSpeed());
+  renderMeter('dartMeterMarker','dartMeterVal', computeDartSpeed());
 
   document.getElementById('safetyNum').textContent = state.safety.toFixed(0);
   document.getElementById('safetyBar').style.width = clamp(state.safety,0,100) + '%';
 
-  var lastFair = state.fairScores.length ? state.fairScores[state.fairScores.length-1].score : 100;
-  var lastClock = state.clockScores.length ? state.clockScores[state.clockScores.length-1].score : 100;
+  var lastFair = state.lastFair, lastClock = state.lastClock, lastStability = state.lastStability;
   var reputation = clamp((state.safety + lastFair + lastClock)/3 + state.repBonus, 0, 100);
 
   document.getElementById('fairNum').textContent = lastFair.toFixed(0);
   document.getElementById('fairBar').style.width = clamp(lastFair,0,100) + '%';
   document.getElementById('clockNum').textContent = lastClock.toFixed(0);
   document.getElementById('clockBar').style.width = clamp(lastClock,0,100) + '%';
+  document.getElementById('stabilityNum').textContent = lastStability.toFixed(0);
+  document.getElementById('stabilityBar').style.width = clamp(lastStability,0,100) + '%';
   document.getElementById('repNum').textContent = reputation.toFixed(0);
   document.getElementById('repBar').style.width = clamp(reputation,0,100) + '%';
 
-  document.getElementById('btnWater').disabled = !canAfford(ACTIONS.water);
-  document.getElementById('btnMow').disabled = !canAfford(ACTIONS.mow);
-  document.getElementById('btnAerate').disabled = !canAfford(ACTIONS.aerate);
-  document.getElementById('btnFert').disabled = !canAfford(ACTIONS.fert);
-  document.getElementById('btnRepair').disabled = !canAfford(ACTIONS.repair);
-  document.getElementById('btnHarrow').disabled = !canAfford(ACTIONS.harrow);
-  document.getElementById('btnSand').disabled = !canAfford(ACTIONS.sandfill);
-  document.getElementById('btnRail').disabled = !canRail() || !canAfford(ACTIONS.rail);
+  Object.keys(ACTION_BUTTONS).forEach(function(key){
+    var btn = document.getElementById(ACTION_BUTTONS[key]);
+    btn.disabled = !canDoAction(key);
+    btn.title = previewText(key);
+  });
+  document.getElementById('advanceBtn').disabled = state.gameOver;
 
   var logEl = document.getElementById('log');
   logEl.innerHTML = '';
-  state.log.slice(0,14).forEach(function(entry){
+  state.log.slice(0,16).forEach(function(entry){
     var d = document.createElement('div');
     d.textContent = entry.msg;
     if (entry.cls) d.classList.add(entry.cls);
@@ -1289,8 +2012,21 @@ function render(){
 
   renderZoneInfo();
   renderStaffPanel();
+  renderMissions();
   drawCourse();
   drawElev();
+}
+
+function renderMissions(){
+  var el = document.getElementById('missionList');
+  el.innerHTML = '';
+  if (!state.missions.length){ el.textContent = '進行中のミッションなし'; return; }
+  state.missions.forEach(function(m){
+    var div = document.createElement('div');
+    div.style.marginBottom = '4px';
+    div.textContent = m.desc + '　期限: ' + m.deadlineYear + '年目' + MONTH_NAMES[m.deadlineMonth-1];
+    el.appendChild(div);
+  });
 }
 
 /* ===================== 入力 ===================== */
@@ -1330,14 +2066,21 @@ document.getElementById('btnFert').addEventListener('click', doFert);
 document.getElementById('btnRepair').addEventListener('click', doRepair);
 document.getElementById('btnHarrow').addEventListener('click', doHarrow);
 document.getElementById('btnSand').addEventListener('click', doSandfill);
+document.getElementById('btnOverseed').addEventListener('click', doOverseed);
+document.getElementById('btnAntifreeze').addEventListener('click', doAntifreeze);
+document.getElementById('btnSandMix').addEventListener('click', doSandmix);
+document.getElementById('btnSandWash').addEventListener('click', doSandwash);
 document.getElementById('btnRail').addEventListener('click', doRail);
+document.getElementById('btnRailReset').addEventListener('click', doRailReset);
 document.getElementById('advanceBtn').addEventListener('click', advanceWeek);
 
 /* ===================== 作業ボタン表記・効果プレビュー ===================== */
 
 var ACTION_BUTTONS = {
   water: 'btnWater', mow: 'btnMow', aerate: 'btnAerate', fert: 'btnFert', repair: 'btnRepair',
-  harrow: 'btnHarrow', sandfill: 'btnSand', rail: 'btnRail'
+  harrow: 'btnHarrow', sandfill: 'btnSand',
+  overseed: 'btnOverseed', antifreeze: 'btnAntifreeze', sandmix: 'btnSandMix', sandwash: 'btnSandWash',
+  rail: 'btnRail', railreset: 'btnRailReset'
 };
 
 function initActionButtons(){
@@ -1373,48 +2116,96 @@ function showFiredModal(){
       '<h2>更迭</h2>' +
       '<div class="grade" style="color:#d1443a;">D</div>' +
       '<p>安全スコアが著しく低下し、造園課職員としての職務継続は困難と判断されました。</p>' +
-      '<p>故障件数: ' + state.breakdownCount + '件</p>' +
+      '<p>故障件数: ' + state.breakdownCount + '件 ／ ' + state.year + '年目 ' + MONTH_NAMES[state.month-1] + ' 第' + state.week + '週</p>' +
       '<button id="retryBtn">もう一度</button>' +
     '</div></div>';
-  document.getElementById('retryBtn').addEventListener('click', function(){ closeModal(); newGame(); });
+  document.getElementById('retryBtn').addEventListener('click', function(){ closeModal(); showStartModal(); });
 }
 
-function showResultModal(){
-  var fairAvg = weightedAvg(state.fairScores);
-  var clockAvg = weightedAvg(state.clockScores);
-  var total = clamp(state.safety*0.4 + fairAvg*0.3 + clockAvg*0.3 + state.repBonus, 0, 100);
-  var grade = 'D';
-  if (total >= 92) grade = 'S';
-  else if (total >= 83) grade = 'A';
-  else if (total >= 70) grade = 'B';
-  else if (total >= 55) grade = 'C';
+function yearTableHtml(records){
+  var rows = records.map(function(r){
+    return '<tr><td>' + r.year + '年目</td><td>' + r.avg.toFixed(1) + '</td><td>' + r.rank + '</td><td>' + (r.bonus?('+'+r.bonus+'万円'):'-') + '</td></tr>';
+  }).join('');
+  return '<table><tr><th>年</th><th>平均</th><th>ランク</th><th>報奨</th></tr>' + rows + '</table>';
+}
 
+function showYearEndModal(record){
+  var monthRows = record.months.map(function(m){
+    return '<tr><td>' + MONTH_NAMES[m.month-1] + (m.isG1?'(G1)':'') + '</td><td>' + m.score.toFixed(1) + '</td><td>' + m.rank + '</td></tr>';
+  }).join('');
+  var layer = document.getElementById('modalLayer');
+  layer.innerHTML =
+    '<div class="modal-bg"><div class="modal">' +
+      '<h2>' + record.year + '年目 年間成績</h2>' +
+      '<div class="grade">' + record.rank + '</div>' +
+      '<p>年間平均評価: ' + record.avg.toFixed(1) + (record.bonus?(' ／ 報奨金+' + record.bonus + '万円'):'') + '</p>' +
+      '<table><tr><th>月</th><th>スコア</th><th>ランク</th></tr>' + monthRows + '</table>' +
+      '<div class="choices"><button id="yeOk">次の年へ</button></div>' +
+    '</div></div>';
+  document.getElementById('yeOk').addEventListener('click', function(){
+    closeModal();
+    genWeekWeather();
+    addLog(calLabel() + 'が始まる。');
+    weekStartFlow();
+  });
+}
+
+function showFinalModal(){
+  var totalAvg = state.yearRecords.length ? state.yearRecords.reduce(function(s,r){return s+r.avg;},0)/state.yearRecords.length : 0;
+  var overallRank = scoreToRank(totalAvg);
   var comment;
-  if (grade==='S') comment = '完璧な馬場造園。関係者からの信頼も厚い、伝説のシーズンだった。';
-  else if (grade==='A') comment = '安定した馬場管理で、全8週の開催を無事に乗り切った。';
-  else if (grade==='B') comment = '一部に課題は残ったが、大きな問題なく開催を終えた。';
-  else if (grade==='C') comment = '荒れや不公平感が目立つ開催となった。改善の余地あり。';
-  else comment = '安全面・公平性ともに大きな課題を残した開催となった。';
+  if (overallRank==='S') comment = '完璧な馬場造園。' + state.contractYears + '年間、関係者からの信頼も厚い伝説の造園家だった。';
+  else if (overallRank==='A') comment = '安定した馬場管理で、契約期間を通じて高い評価を得た。';
+  else if (overallRank==='B') comment = '一部に課題は残ったが、大きな問題なく契約期間を終えた。';
+  else if (overallRank==='C') comment = '荒れや不公平感が目立つシーズンが多かった。改善の余地あり。';
+  else comment = '安全面・公平性ともに大きな課題を残した契約期間となった。';
 
   var layer = document.getElementById('modalLayer');
   layer.innerHTML =
     '<div class="modal-bg"><div class="modal">' +
-      '<h2>8週間の開催 終了</h2>' +
-      '<div class="grade">' + grade + '</div>' +
-      '<p>総合スコア: ' + total.toFixed(1) + '</p>' +
-      '<p>安全: ' + state.safety.toFixed(1) + ' ／ 公平平均: ' + fairAvg.toFixed(1) + ' ／ 時計平均: ' + clockAvg.toFixed(1) + ' ／ 評判ボーナス: ' + state.repBonus.toFixed(0) + '</p>' +
+      '<h2>契約' + state.contractYears + '年間 終了</h2>' +
+      '<div class="grade">' + overallRank + '</div>' +
+      '<p>通算平均評価: ' + totalAvg.toFixed(1) + '</p>' +
       '<p>故障件数: ' + state.breakdownCount + '件 ／ 最終コース: ' + state.course + '</p>' +
+      yearTableHtml(state.yearRecords) +
       '<p>' + comment + '</p>' +
-      '<button id="retryBtn">もう一度</button>' +
+      '<div class="choices"><button id="retryBtn">もう一度</button></div>' +
     '</div></div>';
-  document.getElementById('retryBtn').addEventListener('click', function(){ closeModal(); newGame(); });
+  document.getElementById('retryBtn').addEventListener('click', function(){ closeModal(); showStartModal(); });
+}
+
+/* ===================== スタートモーダル ===================== */
+
+function showStartModal(){
+  var layer = document.getElementById('modalLayer');
+  layer.innerHTML =
+    '<div class="modal-bg"><div class="modal">' +
+      '<h2>馬場造園課 着任</h2>' +
+      '<p>契約年数と難易度を選択してください。</p>' +
+      '<label for="startYears">契約年数</label>' +
+      '<select id="startYears">' +
+        [1,2,3].map(function(y){ return '<option value="' + y + '"' + (y===3?' selected':'') + '>' + y + '年</option>'; }).join('') +
+      '</select>' +
+      '<label for="startDifficulty">難易度</label>' +
+      '<select id="startDifficulty">' +
+        '<option value="normal">NORMAL(東京)</option>' +
+        '<option value="hard" disabled>HARD(東京/中山/京都/阪神) — 準備中</option>' +
+        '<option value="extra" disabled>EXTRA(JRA全10場) — 準備中</option>' +
+      '</select>' +
+      '<div class="choices"><button id="startBtn">着任する</button></div>' +
+    '</div></div>';
+  document.getElementById('startBtn').addEventListener('click', function(){
+    var years = parseInt(document.getElementById('startYears').value, 10) || 3;
+    closeModal();
+    newGame(years);
+  });
 }
 
 /* ===================== 起動 ===================== */
 
-newGame();
 populateZoneSelect();
 initActionButtons();
+showStartModal();
 
 })();
 </script>
