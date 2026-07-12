@@ -43,6 +43,7 @@
   select, button { font-family: inherit; font-size: 12px; background: #2c2f39; color: #d9d9d0; border: 1px solid #4a4d57; border-radius: 3px; padding: 4px 6px; cursor: pointer; }
   select:hover, button:hover:not(:disabled) { border-color: #9fe1cb; }
   button:disabled { opacity: 0.4; cursor: not-allowed; }
+  button.armed { border-color: #f0c04a; box-shadow: 0 0 0 1px #f0c04a; }
   select:disabled { opacity: 0.4; }
   #actions { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
   #actions button { flex: 1 1 auto; min-width: 110px; }
@@ -2457,28 +2458,6 @@ document.getElementById('zoneSelect').addEventListener('change', function(ev){
   render();
 });
 
-document.getElementById('btnWaterTurf').addEventListener('click', doWaterTurf);
-document.getElementById('btnWaterDart').addEventListener('click', doWaterDart);
-document.getElementById('btnMow').addEventListener('click', doMow);
-document.getElementById('btnAerate').addEventListener('click', doAerate);
-document.getElementById('btnShatter').addEventListener('click', doShatter);
-document.getElementById('btnFert').addEventListener('click', doFert);
-document.getElementById('btnRepair').addEventListener('click', doRepair);
-document.getElementById('btnHarrow').addEventListener('click', doHarrow);
-document.getElementById('btnSand').addEventListener('click', doSandfill);
-document.getElementById('btnVertidrain').addEventListener('click', doVertidrain);
-document.getElementById('btnRoller').addEventListener('click', doRoller);
-document.getElementById('btnSandSkim').addEventListener('click', doSandskim);
-document.getElementById('btnOverseed').addEventListener('click', doOverseed);
-document.getElementById('btnAntifreeze').addEventListener('click', doAntifreeze);
-document.getElementById('btnSandMix').addEventListener('click', doSandmix);
-document.getElementById('btnSandWash').addEventListener('click', doSandwash);
-document.getElementById('btnRail').addEventListener('click', doRail);
-document.getElementById('btnRailReset').addEventListener('click', doRailReset);
-document.getElementById('advanceBtn').addEventListener('click', advanceWeek);
-
-/* ===================== 作業ボタン表記・効果プレビュー ===================== */
-
 var ACTION_BUTTONS = {
   waterTurf: 'btnWaterTurf', waterDart: 'btnWaterDart', mow: 'btnMow', aerate: 'btnAerate', shatter: 'btnShatter', fert: 'btnFert', repair: 'btnRepair',
   harrow: 'btnHarrow', sandfill: 'btnSand',
@@ -2486,6 +2465,62 @@ var ACTION_BUTTONS = {
   overseed: 'btnOverseed', antifreeze: 'btnAntifreeze', sandmix: 'btnSandMix', sandwash: 'btnSandWash',
   rail: 'btnRail', railreset: 'btnRailReset'
 };
+
+var ACTION_DO_FUNCS = {
+  waterTurf: doWaterTurf, waterDart: doWaterDart, mow: doMow, aerate: doAerate, shatter: doShatter, fert: doFert, repair: doRepair,
+  harrow: doHarrow, sandfill: doSandfill,
+  vertidrain: doVertidrain, roller: doRoller, sandskim: doSandskim,
+  overseed: doOverseed, antifreeze: doAntifreeze, sandmix: doSandmix, sandwash: doSandwash,
+  rail: doRail, railreset: doRailReset
+};
+
+/* ===================== スマホ向け二段階タップ実行 ===================== */
+
+var twoTapMode = window.matchMedia('(hover: none), (pointer: coarse)').matches;
+var armedKey = null;
+
+function armAction(key){
+  armedKey = key;
+  Object.keys(ACTION_BUTTONS).forEach(function(k){
+    document.getElementById(ACTION_BUTTONS[k]).classList.toggle('armed', k === key);
+  });
+  document.getElementById('previewText').textContent = previewText(key) + '（もう一度タップで実行）';
+}
+
+function disarmAction(){
+  if (armedKey === null) return;
+  armedKey = null;
+  Object.keys(ACTION_BUTTONS).forEach(function(k){
+    document.getElementById(ACTION_BUTTONS[k]).classList.remove('armed');
+  });
+  document.getElementById('previewText').textContent = '作業にカーソルを合わせると効果を表示';
+}
+
+function handleActionTap(key){
+  if (!twoTapMode){
+    ACTION_DO_FUNCS[key]();
+    return;
+  }
+  if (armedKey === key){
+    disarmAction();
+    ACTION_DO_FUNCS[key]();
+  } else {
+    armAction(key);
+  }
+}
+
+// モーダルが開いたら待機状態を解除する
+var modalLayerEl = document.getElementById('modalLayer');
+new MutationObserver(function(){
+  if (modalLayerEl.children.length > 0) disarmAction();
+}).observe(modalLayerEl, { childList: true });
+
+Object.keys(ACTION_BUTTONS).forEach(function(key){
+  document.getElementById(ACTION_BUTTONS[key]).addEventListener('click', function(){ handleActionTap(key); });
+});
+document.getElementById('advanceBtn').addEventListener('click', function(){ disarmAction(); advanceWeek(); });
+
+/* ===================== 作業ボタン表記・効果プレビュー ===================== */
 
 function initActionButtons(){
   Object.keys(ACTION_BUTTONS).forEach(function(key){
@@ -2501,9 +2536,11 @@ function initActionButtons(){
 }
 
 function showPreview(key){
+  if (twoTapMode && armedKey === key) return;
   document.getElementById('previewText').textContent = previewText(key);
 }
 function hidePreview(){
+  if (twoTapMode && armedKey !== null) return;
   document.getElementById('previewText').textContent = '作業にカーソルを合わせると効果を表示';
 }
 
