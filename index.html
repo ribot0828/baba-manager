@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>馬場造園課になろう</title>
+<title>馬場造園家体験ゲーム 〜多摩競馬場〜</title>
 <style>
   * { box-sizing: border-box; }
   body {
@@ -69,7 +69,7 @@
   .modal table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 8px; }
   .modal table th, .modal table td { border-bottom: 1px dashed #3a3d46; padding: 3px 4px; text-align: center; }
   .modal table th { color: #8a8d97; }
-  .hidden { display: none; }
+  .hidden { display: none !important; }
   #staffPanel .staffRow { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 4px 0; border-bottom: 1px dashed #2a2d35; font-size: 11px; }
   #staffPanel .staffRow:last-child { border-bottom: none; }
   #staffPanel .staffName { color: #d9d9d0; font-weight: bold; }
@@ -88,11 +88,25 @@
   .condBadge.cond-omo { background: #f0c04a; }
   .condBadge.cond-furyo { background: #d16a5a; color: #fff; }
   #topbar .condRow { display: flex; gap: 4px; align-items: center; }
+  #courseBlock { background: #14161c; }
+  @media (min-width: 720px) {
+    #courseBlock { position: sticky; top: 0; z-index: 5; padding-top: 2px; padding-bottom: 2px; }
+  }
+  #saveRow { display: flex; gap: 8px; align-items: center; justify-content: flex-end; font-size: 10px; color: #8a8d97; margin-bottom: 6px; }
+  #saveRow button { font-size: 10px; padding: 2px 6px; }
+  #saveRow .savedTag { color: #9fe1cb; }
 </style>
 </head>
 <body>
 <div id="wrap">
-  <h1>馬場造園課になろう 〜東京競馬場〜</h1>
+  <h1>馬場造園家体験ゲーム 〜多摩競馬場〜</h1>
+  <div id="saveRow">
+    <span id="saveStatus"></span>
+    <button id="btnExport">エクスポート</button>
+    <button id="btnImport">インポート</button>
+    <input type="file" id="importFile" accept="application/json" class="hidden">
+    <button id="btnDeleteSave">セーブ削除</button>
+  </div>
 
   <div class="panel" id="topbar">
     <div class="item">
@@ -127,8 +141,37 @@
 
   <div id="main">
     <div id="left">
-      <canvas id="course" width="640" height="360"></canvas>
-      <canvas id="elev" width="640" height="72"></canvas>
+      <div id="courseBlock">
+        <canvas id="course" width="640" height="360"></canvas>
+        <canvas id="elev" width="640" height="72"></canvas>
+      </div>
+      <div class="panel">
+        <div id="actions">
+          <button id="btnWaterTurf">散水(芝)</button>
+          <button id="btnWaterDart">散水(ダート)</button>
+          <button id="btnMow">芝刈り</button>
+          <button id="btnAerate">エアレーション</button>
+          <button id="btnShatter">シャタリング</button>
+          <button id="btnFert">肥料</button>
+          <button id="btnRepair">目土・補修</button>
+          <button id="btnHarrow">ハロー掛け</button>
+          <button id="btnSand">砂補充</button>
+          <button id="btnVertidrain">バーチドレン排水</button>
+          <button id="btnRoller">転圧ローラー</button>
+          <button id="btnSandSkim">砂厚調整</button>
+          <button id="btnOverseed">オーバーシード</button>
+          <button id="btnAntifreeze">凍結防止剤</button>
+          <button id="btnSandMix">クッション砂入替</button>
+          <button id="btnSandWash">クッション砂洗浄</button>
+          <button id="btnRail">内柵移動</button>
+          <button id="btnRailReset">内柵リセット</button>
+          <button id="advanceBtn">翌週へ→</button>
+        </div>
+        <div class="panel" id="previewPanel">
+          <div id="previewText">作業にカーソルを合わせると効果を表示</div>
+          <div id="previewNote">失敗5%(効果0.5倍)／成功75%／大成功20%(効果1.5倍、スタッフでさらに上昇の場合あり)</div>
+        </div>
+      </div>
       <div class="panel" id="zoneSelectRow">
         <span class="label">ゾーン選択:</span>
         <select id="zoneSelect"></select>
@@ -156,6 +199,11 @@
         <div class="stat-row">
           <div class="stat-title">芝丈</div>
           <div class="stat-val" id="grassVal">-</div>
+        </div>
+        <div class="stat-row">
+          <div class="stat-title">芝の構成</div>
+          <div class="bar-outer"><div class="bar-inner" id="overseedBar"></div></div>
+          <div class="stat-val" id="overseedVal">-</div>
         </div>
         <div class="stat-row">
           <div class="stat-title">根の健康</div>
@@ -223,38 +271,13 @@
         <div id="staffList"></div>
       </div>
       <div class="panel" id="missionPanel">
-        <div class="stat-title">JRAミッション (最大2件)</div>
+        <div class="stat-title">NHA(日本競馬協会)ミッション (最大2件)</div>
         <div id="missionList">進行中のミッションなし</div>
       </div>
     </div>
   </div>
 
   <div class="panel">
-    <div id="actions">
-      <button id="btnWaterTurf">散水(芝)</button>
-      <button id="btnWaterDart">散水(ダート)</button>
-      <button id="btnMow">芝刈り</button>
-      <button id="btnAerate">エアレーション</button>
-      <button id="btnShatter">シャタリング</button>
-      <button id="btnFert">肥料</button>
-      <button id="btnRepair">目土・補修</button>
-      <button id="btnHarrow">ハロー掛け</button>
-      <button id="btnSand">砂補充</button>
-      <button id="btnVertidrain">バーチドレン排水</button>
-      <button id="btnRoller">転圧ローラー</button>
-      <button id="btnSandSkim">砂厚調整</button>
-      <button id="btnOverseed">オーバーシード</button>
-      <button id="btnAntifreeze">凍結防止剤</button>
-      <button id="btnSandMix">クッション砂入替</button>
-      <button id="btnSandWash">クッション砂洗浄</button>
-      <button id="btnRail">内柵移動</button>
-      <button id="btnRailReset">内柵リセット</button>
-      <button id="advanceBtn">翌週へ→</button>
-    </div>
-    <div class="panel" id="previewPanel">
-      <div id="previewText">作業にカーソルを合わせると効果を表示</div>
-      <div id="previewNote">失敗5%(効果0.5倍)／成功75%／大成功20%(効果1.5倍、スタッフでさらに上昇の場合あり)</div>
-    </div>
     <div id="log"></div>
   </div>
 </div>
@@ -264,6 +287,9 @@
 <script>
 (function(){
 "use strict";
+
+var SAVE_KEY = 'babaKeeperSave';
+var SAVE_VERSION = 2;
 
 /* ===================== 定数・コース生成 ===================== */
 
@@ -408,15 +434,17 @@ var MONTH_NAMES = ['1月','2月','3月','4月','5月','6月','7月','8月','9月
 var DAY_NAMES = ['月','火','水','木','金','土','日'];
 var RACE_MONTHS = [1,2,4,5,6,10,11];
 var OFF_MONTHS = [3,7,8,9,12];
-var G1_MONTHS = { 2:'フェブラリーS', 5:'オークス/日本ダービー', 6:'安田記念', 10:'天皇賞(秋)', 11:'ジャパンカップ' };
+var G1_MONTHS = { 2:'多摩ダートステークス', 5:'多摩オークス/多摩ダービー/3歳マイルカップ/クイーンズマイル', 6:'多摩マイル', 10:'エンペラーカップ', 11:'ジャパンクラシックターフ' };
 // 月・週キー("month_week")単位のG1割当
 var G1_WEEKS = {
-  '2_3': 'フェブラリーS',
-  '5_3': 'オークス',
-  '5_4': '日本ダービー',
-  '6_1': '安田記念',
-  '10_4': '天皇賞(秋)',
-  '11_4': 'ジャパンカップ'
+  '2_3': '多摩ダートステークス',
+  '5_1': '3歳マイルカップ',
+  '5_2': 'クイーンズマイル',
+  '5_3': '多摩オークス',
+  '5_4': '多摩ダービー',
+  '6_1': '多摩マイル',
+  '10_4': 'エンペラーカップ',
+  '11_4': 'ジャパンクラシックターフ'
 };
 var HEATWAVE_MONTHS = [7,8,9];
 var TYPHOON_MONTHS = [8,9,10];
@@ -515,7 +543,7 @@ var STAFF_DEFS = {
 
 var EVENT_LABELS = {
   typhoon: '台風接近', heatwave: '猛暑', media: 'メディア取材',
-  pricehike: '資材高騰', inspection: 'JRA査察', goodweather: '好天続き', coldwave: '寒波襲来'
+  pricehike: '資材高騰', inspection: 'NHA査察', goodweather: '好天続き', coldwave: '寒波襲来', extremeheat: '熱波'
 };
 
 function staffEffectMult(actionKey){
@@ -548,7 +576,7 @@ function previewText(key){
     case 'vertidrain': return 'バーチドレン排水: 芝含水率-' + a.turfMoistDownAmt.toFixed(1) + '%pt・根+' + a.rootAmt;
     case 'roller':   return '転圧ローラー: クッション値-' + a.cushionDownAmt.toFixed(1) + '（時計は出るが故障リスク増のハイリスク作業）';
     case 'sandskim': return '砂厚調整(すき取り): 砂厚-' + a.sandDownAmt.toFixed(1) + 'cm（時計を出したい時用）';
-    case 'overseed': return 'オーバーシード: 洋芝を導入し冬の芝を守る（9〜11月のみ・翌年6月頃自然消滅）' + (canOverseed()?'':'【現在使用不可：9〜11月のみ】');
+    case 'overseed': return 'オーバーシード: 洋芝率+50pt（大成功+75/失敗+25）。秋〜春に生育、5月から6月末にかけて消滅。通常はパワー寄りだが熱波発生中はスピード寄りに反転（9〜11月のみ実施可）' + (canOverseed()?'':'【現在使用不可：9〜11月のみ】');
     case 'antifreeze':return '凍結防止剤: 今後4週間、ダート凍結リスクを防止（11〜2月のみ）' + (canAntifreeze()?'':'【現在使用不可：11〜2月のみ】');
     case 'sandmix':   return 'クッション砂入替: 産地構成比を配分へ大きく寄せる・シルト化-40・砂摩耗-40・砂厚+0.5（整備月のみ・砂' + a.sandTon + 't消費）' + (canSandMix()?(sandQuotaOk(a.sandTon)?'':'【現在使用不可：産地枠不足】'):'【現在使用不可：整備月のみ】');
     case 'sandwash':  return 'クッション砂洗浄: シルト化・砂摩耗をリセット（整備月のみ）' + (canSandWash()?'':'【現在使用不可：整備月のみ】');
@@ -559,6 +587,102 @@ function previewText(key){
 }
 
 var state = null;
+
+/* ===================== セーブ/ロード ===================== */
+
+function saveGame(){
+  if (!state) return;
+  try {
+    var payload = {
+      v: SAVE_VERSION,
+      state: state,
+      cellsDmg: cells.map(function(c){ return c.dmg; }),
+      dartCellsDmg: dartCells.map(function(c){ return c.dmg; })
+    };
+    localStorage.setItem(SAVE_KEY, JSON.stringify(payload));
+    var st = document.getElementById('saveStatus');
+    if (st) st.textContent = '自動セーブ済み';
+  } catch (e){ /* localStorage不可時は無視 */ }
+}
+
+function hasSaveData(){
+  try {
+    var raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) return false;
+    var parsed = JSON.parse(raw);
+    return !!parsed && parsed.v === SAVE_VERSION && !!parsed.state;
+  } catch (e){ return false; }
+}
+
+function applySaveData(payload){
+  state = payload.state;
+  if (payload.cellsDmg && payload.cellsDmg.length === cells.length){
+    cells.forEach(function(c,i){ c.dmg = payload.cellsDmg[i]; });
+  }
+  if (payload.dartCellsDmg && payload.dartCellsDmg.length === dartCells.length){
+    dartCells.forEach(function(c,i){ c.dmg = payload.dartCellsDmg[i]; });
+  }
+}
+
+function loadGameFromStorage(){
+  try {
+    var raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) return false;
+    var parsed = JSON.parse(raw);
+    if (!parsed || parsed.v !== SAVE_VERSION || !parsed.state) return false;
+    applySaveData(parsed);
+    return true;
+  } catch (e){ return false; }
+}
+
+function deleteSaveData(){
+  try { localStorage.removeItem(SAVE_KEY); } catch (e){}
+  var st = document.getElementById('saveStatus');
+  if (st) st.textContent = 'セーブ削除済み';
+}
+
+function exportSaveData(){
+  if (!state) return;
+  var payload = {
+    v: SAVE_VERSION,
+    state: state,
+    cellsDmg: cells.map(function(c){ return c.dmg; }),
+    dartCellsDmg: dartCells.map(function(c){ return c.dmg; })
+  };
+  var blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'baba-keeper-save.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function importSaveDataFromFile(file){
+  var reader = new FileReader();
+  reader.onload = function(){
+    try {
+      var parsed = JSON.parse(reader.result);
+      if (!parsed || parsed.v !== SAVE_VERSION || !parsed.state){
+        alert('インポート失敗: セーブデータのバージョンが異なるか、形式が不正です。');
+        return;
+      }
+      applySaveData(parsed);
+      saveGame();
+      closeModal();
+      render();
+      addLog('セーブデータをインポートして復元した。');
+    } catch (e){
+      alert('インポート失敗: ファイルを読み込めませんでした。');
+    }
+  };
+  reader.onerror = function(){
+    alert('インポート失敗: ファイルを読み込めませんでした。');
+  };
+  reader.readAsText(file);
+}
 
 function computeInitialSpeeds(){
   state.turfSpeed = computeTurfSpeed();
@@ -572,7 +696,7 @@ function newGame(contractYears){
     week: 1,
     contractYears: contractYears || 3,
     course: 'A',
-    budget: 200,
+    budget: 1000,
     ap: 6,
     apMax: 6,
     turfMoist: 13,
@@ -614,8 +738,9 @@ function newGame(contractYears){
     lastClock: 100,
     lastStability: 100,
     lastDelta: 0,
-    overseed: false,
-    overseedExpireYear: null,
+    overseedArea: 0,
+    extremeHeatWeeksLeft: 0,
+    sandAllocDone: false,
     antifreezeAppliedWeek: null,
     antifreezeStickyTriggered: false,
     freezeBreakdownBonus: 0,
@@ -638,7 +763,7 @@ function newGame(contractYears){
   state.prevTurfSpeed = state.turfSpeed;
   state.prevDartSpeed = state.dartSpeed;
   genWeekWeather();
-  addLog('東京競馬場 馬場造園課へようこそ。契約' + state.contractYears + '年間の馬場管理が始まる。1年目1月第1週。');
+  addLog('多摩競馬場 馬場造園課へようこそ。契約' + state.contractYears + '年間の馬場管理が始まる。1年目1月第1週。');
   weekStartFlow();
 }
 
@@ -671,13 +796,30 @@ function applyWeekWeather(){
   var eff = TENDENCY_EFFECT_WEEK[state.tendency];
   state.cushion += eff.cushion + state.rainDays * 0.02;
   var turfDelta = 0, dartDelta = 0;
+  var rootCoef = 0.8 + (state.root/100)*0.4; // 根の健康→排水性: 乾く方向の変化に乗算
   state.actualDays.forEach(function(cat){
     var d = dailyMoistDelta(cat, state.month);
     var turfD = d.turf;
-    if (state.drainBoostWeeks > 0 && turfD < 0) turfD *= 1.3;
+    var dartD = d.dart;
+    if (turfD < 0){
+      turfD *= rootCoef;
+      if (state.drainBoostWeeks > 0) turfD *= 1.3;
+      if (state.extremeHeatWeeksLeft > 0) turfD *= 1.6;
+    }
+    if (dartD < 0 && state.extremeHeatWeeksLeft > 0) dartD *= 1.6;
     turfDelta += turfD;
-    dartDelta += d.dart;
+    dartDelta += dartD;
   });
+  // 自然蒸発散(天候とは別の週次ベース減少)
+  var evapoSeasonMult = HEATWAVE_MONTHS.indexOf(state.month)>=0 ? 1.3 : (COLDWAVE_MONTHS.indexOf(state.month)>=0 ? 0.7 : 1.0);
+  var turfEvapo = -0.6 * evapoSeasonMult * rootCoef;
+  if (state.drainBoostWeeks > 0) turfEvapo *= 1.3;
+  if (state.extremeHeatWeeksLeft > 0) turfEvapo *= 1.6;
+  var dartEvapo = -0.4 * evapoSeasonMult;
+  if (state.extremeHeatWeeksLeft > 0) dartEvapo *= 1.6;
+  turfDelta += turfEvapo;
+  dartDelta += dartEvapo;
+
   state.turfMoist += turfDelta;
   state.dartMoist += dartDelta;
   if (state.heatwaveActive){ state.turfMoist -= 1.0; state.dartMoist -= 0.6; }
@@ -763,7 +905,10 @@ function turfSpeedAddends(){
     (9.8 - state.cushion) * 8,
     (14 - state.grass) * 2
   ];
-  if (state.overseed) arr.push(-15);
+  if (state.overseedArea > 0){
+    // 通常時は洋芝が多いほどパワー寄り。熱波が続いている間だけスピード寄りに反転する。
+    arr.push(state.extremeHeatWeeksLeft > 0 ? state.overseedArea * 0.18 : -state.overseedArea * 0.15);
+  }
   if (state.shatterSpeedWeeks > 0) arr.push(-10);
   return arr;
 }
@@ -1001,15 +1146,9 @@ function doOverseed(){
   if (!canDoAction('overseed')) return;
   state.ap -= a.p; state.budget -= actionCost(a);
   var outcome = rollOutcome('overseed');
-  if (outcome==='fail'){
-    logOutcome(a.label, outcome, '洋芝の定着に失敗した');
-  } else {
-    state.overseed = true;
-    state.overseedExpireYear = state.year + 1;
-    var bonus = outcome==='crit' ? 5 : 0;
-    if (bonus) state.root = Math.min(100, state.root + bonus);
-    logOutcome(a.label, outcome, '洋芝オーバーシードを実施した（翌年6月頃まで持続）' + (bonus?'・根+5':''));
-  }
+  var areaAmt = outcome==='fail' ? 25 : (outcome==='crit' ? 75 : 50);
+  state.overseedArea = Math.min(100, state.overseedArea + areaAmt);
+  logOutcome(a.label, outcome, '洋芝面積+' + areaAmt + 'pt（現在' + Math.round(state.overseedArea) + '%）');
   render();
 }
 function doAntifreeze(){
@@ -1375,7 +1514,8 @@ function advanceWeek(){
     if (afActive && state.rainDays>=2 && !state.antifreezeStickyTriggered){
       state.dartSticky = 2;
       state.antifreezeStickyTriggered = true;
-      addLog('凍結防止剤が雨で粘着質に。パワー馬場になった（効果2週間）', 'crit');
+      state.silt = clamp(state.silt + 8, 0, 100);
+      addLog('凍結防止剤が雨で粘着質に。パワー馬場になった（効果2週間・シルト+8）', 'crit');
     }
     if ([12,1,2].indexOf(state.month)>=0 && !afActive){
       var freezeRisk = state.coldwaveActive || (state.tendency==='cold' && state.rainDays<1);
@@ -1407,6 +1547,7 @@ function advanceWeek(){
   state.sandWear = clamp(state.sandWear + (raceWeek?1.25:0.5), 0, 100);
   var siltGain = (state.sandWear*0.06 + raceWearAmt*0.5) * siltCoef;
   if (state.dartCond==='重' || state.dartCond==='不良') siltGain += (state.sandMix.aomori/100) * 0.75;
+  if (state.dartSticky > 0) siltGain *= 1.5;
   state.silt = clamp(state.silt + siltGain, 0, 100);
 
   if (raceWeek){
@@ -1432,14 +1573,29 @@ function advanceWeek(){
   }
   if (state.staff.turf) state.root += 0.75;
   if (state.heatwaveActive && !state.heatwaveNightWater) state.root -= 3;
+  if (state.extremeHeatWeeksLeft > 0) state.root -= 6;
   var winterPenaltyMonth = [12,1,2].indexOf(state.month)>=0;
   var overseedWinterMonth = [12,1,2,3].indexOf(state.month)>=0;
-  if (state.overseed && overseedWinterMonth){
-    state.root += 1;
-  } else if (!state.overseed && winterPenaltyMonth){
-    state.root -= 2.5;
+  if (overseedWinterMonth){
+    state.root += 1 * (state.overseedArea/100);
+  }
+  if (winterPenaltyMonth){
+    state.root -= 2.5 * (1 - state.overseedArea/100);
   }
   state.root = clamp(state.root, 0, 100);
+
+  // 洋芝面積の週次変化
+  var overseedGrowMonths = [10,11,12,1,2,3,4];
+  if (overseedGrowMonths.indexOf(state.month)>=0){
+    state.overseedArea = Math.min(100, state.overseedArea + 4);
+  }
+  if (state.month===5 || state.month===6){
+    var areaBefore = state.overseedArea;
+    state.overseedArea = Math.max(0, state.overseedArea - 12.5);
+    if (areaBefore>0 && state.overseedArea<=0) addLog('洋芝が枯れ野芝に戻った。');
+  }
+  if (state.heatwaveActive) state.overseedArea = Math.max(0, state.overseedArea - 5);
+  state.overseedArea = clamp(state.overseedArea, 0, 100);
   var recov = state.root*0.0075*recovMult;
   cells.forEach(function(c){ c.dmg = clamp(c.dmg - recov, 0, 100); });
   var protRecov = offWeek ? 4.5 : 3;
@@ -1485,11 +1641,13 @@ function advanceWeek(){
   if (state.sandBlendStrictMonths > 0) state.sandBlendStrictMonths--;
   if (state.drainBoostWeeks > 0) state.drainBoostWeeks--;
   if (state.shatterSpeedWeeks > 0) state.shatterSpeedWeeks--;
+  if (state.extremeHeatWeeksLeft > 0) state.extremeHeatWeeksLeft--;
   state.ap = state.apMax;
   state.weekIndex++;
 
   if (state.safety < 40){
     state.gameOver = true;
+    saveGame();
     render();
     showFiredModal();
     return;
@@ -1525,10 +1683,10 @@ function monthEndProcess(){
     var avgUsed = sum / used.length;
     if (avgUsed < 30){
       state.repBonus = clamp(state.repBonus + 6, -10, 10);
-      addLog('JRA査察: 馬場状態は良好と評価された。評判+6相当', 'crit');
+      addLog('NHA査察: 馬場状態は良好と評価された。評判+6相当', 'crit');
     } else {
       state.repBonus = clamp(state.repBonus - 6, -10, 10);
-      addLog('JRA査察: 馬場状態に厳しい評価。評判-6相当', 'crit');
+      addLog('NHA査察: 馬場状態に厳しい評価。評判-6相当', 'crit');
     }
   }
 
@@ -1589,6 +1747,7 @@ function monthEndProcess(){
 
     if (isFinalYear){
       state.gameOver = true;
+      saveGame();
       render();
       showFinalModal();
       return;
@@ -1599,11 +1758,6 @@ function monthEndProcess(){
     }
   }
 
-  if (state.overseed && state.month===6 && state.year===state.overseedExpireYear){
-    state.overseed = false;
-    addLog('洋芝が枯れ野芝に戻った。');
-  }
-
   genWeekWeather();
   addLog(calLabel() + 'が始まる。');
   weekStartFlow();
@@ -1612,6 +1766,7 @@ function monthEndProcess(){
 /* ===================== 週初フロー(砂配分モーダル・ミッション・イベント) ===================== */
 
 function weekStartFlow(){
+  saveGame();
   if (state.week === 1){
     if (state.month===1 || state.month===7){
       showSandAllocationModal(function(){
@@ -1641,8 +1796,10 @@ function showSandAllocationModal(callback){
       '<div id="sandWarn" style="color:#d16a5a;font-size:11px;min-height:1.4em;"></div>' +
       '<div class="choices"><button id="sandOk">決定</button></div>' +
     '</div></div>';
+  var isInitial = !state.sandAllocDone;
   var sel = document.getElementById('sandAomori');
   sel.addEventListener('change', function(){
+    if (isInitial) return;
     var v = parseInt(sel.value, 10);
     var diff = Math.abs(v - cur);
     document.getElementById('sandWarn').textContent = diff>=50 ? '警告: 前回配分から' + diff + 'ポイントの急変です。8週間、安定性の判定が厳格化されます。' : '';
@@ -1651,11 +1808,17 @@ function showSandAllocationModal(callback){
     var v = parseInt(sel.value, 10);
     var diff = Math.abs(v - cur);
     state.sandBlend = { aomori: v, albany: 100-v };
-    if (diff>=50){
-      state.sandBlendStrictMonths = 8;
-      addLog('砂質の急変が時計に影響（配分変更差' + diff + 'pt、以後8週厳格化）', 'crit');
+    if (isInitial){
+      state.sandMix = { aomori: v, albany: 100-v };
+      state.sandAllocDone = true;
+      addLog('初回のクッション砂配分を決定: 青森' + v + '% / アルバニー' + (100-v) + '%（急変判定なし）');
+    } else {
+      if (diff>=50){
+        state.sandBlendStrictMonths = 8;
+        addLog('砂質の急変が時計に影響（配分変更差' + diff + 'pt、以後8週厳格化）', 'crit');
+      }
+      addLog('砂産地配分を決定: 青森' + v + '% / アルバニー' + (100-v) + '%');
     }
-    addLog('砂産地配分を決定: 青森' + v + '% / アルバニー' + (100-v) + '%');
     closeModal();
     callback();
   });
@@ -1707,7 +1870,7 @@ function maybeTriggerMission(){
     var mission = buildMission(type);
     if (mission){
       state.missions.push(mission);
-      addLog('JRAミッション発令: 「' + mission.desc + '」', 'crit');
+      addLog('NHAミッション発令: 「' + mission.desc + '」', 'crit');
       return;
     }
   }
@@ -1757,6 +1920,7 @@ function maybeTriggerEvent(){
   var types = ['media','pricehike','inspection','goodweather'];
   if (TYPHOON_MONTHS.indexOf(state.month)>=0) types.push('typhoon');
   if (HEATWAVE_MONTHS.indexOf(state.month)>=0) types.push('heatwave');
+  if (HEATWAVE_MONTHS.indexOf(state.month)>=0) types.push('extremeheat');
   if (COLDWAVE_MONTHS.indexOf(state.month)>=0) types.push('coldwave');
   var type = types[Math.floor(Math.random()*types.length)];
   state.activeEvent = { type: type };
@@ -1767,11 +1931,16 @@ function maybeTriggerEvent(){
     addLog('好天が続く予報。今月は晴れがちになりそうだ。');
   } else if (type==='inspection'){
     state.inspectionPending = true;
-    addLog('JRA査察が入る予定。月末の馬場状態が評価される。', 'crit');
+    addLog('NHA査察が入る予定。月末の馬場状態が評価される。', 'crit');
   } else if (type==='heatwave'){
     state.heatwaveActive = true;
   } else if (type==='coldwave'){
     state.coldwaveActive = true;
+  } else if (type==='extremeheat'){
+    state.extremeHeatWeeksLeft = 2;
+    var areaBefore = state.overseedArea;
+    state.overseedArea = Math.max(0, state.overseedArea - 20);
+    addLog('熱波が到来。今後2週間、含水率の低下が加速し根への負担が大きい。' + (areaBefore>0 ? '（洋芝面積-20pt）' : ''), 'crit');
   }
   showEventModal(type);
 }
@@ -1837,7 +2006,8 @@ function eventBody(type){
     case 'heatwave': return '猛暑が続く予報。夜間散水を手配するか、通常対応とするか選択してください。';
     case 'media': return 'メディアから取材の申し込みがあった。受けるか断るか選択してください。';
     case 'pricehike': return '資材価格が高騰している。今月の作業コストが1.5倍になる。';
-    case 'inspection': return 'JRA査察が予定されている。月末時点の馬場状態が評価される。';
+    case 'inspection': return 'NHA査察が予定されている。月末時点の馬場状態が評価される。';
+    case 'extremeheat': return '猛暑を超える熱波が到来している。含水率の低下が加速し、根や洋芝への負担が大きい。';
     case 'goodweather': return '好天が続く予報が出ている。今月は晴れがちになりそうだ。';
     case 'coldwave': return '寒波が到来している。芝の根に負担がかかりやすい。';
   }
@@ -1888,7 +2058,7 @@ var ectx = elevCanvas.getContext('2d');
 ectx.imageSmoothingEnabled = false;
 
 function dmgColor(dmg){
-  if (state && state.overseed){
+  if (state && state.overseedArea >= 50){
     if (dmg < 20) return '#3f6b34';
     if (dmg < 40) return '#5c8a3a';
     if (dmg < 60) return '#a08c3e';
@@ -2194,7 +2364,9 @@ function render(){
   document.getElementById('laneMidRow').className = 'minibar-row' + (prot.indexOf('mid')>=0?' protected':'');
   document.getElementById('laneOuterRow').className = 'minibar-row' + (prot.indexOf('outer')>=0?' protected':'');
 
-  document.getElementById('dartVal').textContent = '砂厚' + state.sand.toFixed(1) + 'cm ・偏り' + dartAvgDmg().toFixed(1) + ' ・構成 青森' + state.sandMix.aomori.toFixed(0) + '%/アルバニー' + state.sandMix.albany.toFixed(0) + '%' + (state.overseed?' ・洋芝':'') + (state.dartSticky>0?' ・粘着質':'');
+  document.getElementById('dartVal').textContent = '砂厚' + state.sand.toFixed(1) + 'cm ・偏り' + dartAvgDmg().toFixed(1) + ' ・構成 青森' + state.sandMix.aomori.toFixed(0) + '%/アルバニー' + state.sandMix.albany.toFixed(0) + '%' + (state.dartSticky>0?' ・粘着質':'');
+  document.getElementById('overseedVal').textContent = '野芝' + Math.round(100-state.overseedArea) + '% / 洋芝' + Math.round(state.overseedArea) + '%';
+  document.getElementById('overseedBar').style.width = clamp(state.overseedArea,0,100) + '%';
 
   document.getElementById('siltBar').style.width = clamp(state.silt,0,100) + '%';
   document.getElementById('siltBar').style.background = state.silt>60 ? '#d16a5a' : (state.silt>30 ? '#f0c04a' : '#9fe1cb');
@@ -2408,11 +2580,26 @@ function showFinalModal(){
 
 /* ===================== スタートモーダル ===================== */
 
+function continueGame(){
+  if (!loadGameFromStorage()) {
+    alert('セーブデータの読み込みに失敗しました。新規に開始してください。');
+    showStartModal();
+    return;
+  }
+  closeModal();
+  populateZoneSelect();
+  document.getElementById('zoneSelect').value = state.selectedZone;
+  render();
+  addLog('セーブデータから再開した。');
+}
+
 function showStartModal(){
   var layer = document.getElementById('modalLayer');
+  var hasSave = hasSaveData();
   layer.innerHTML =
     '<div class="modal-bg"><div class="modal">' +
       '<h2>馬場造園課 着任</h2>' +
+      (hasSave ? '<div class="choices"><button id="continueBtn">続きから</button></div>' : '') +
       '<p>契約年数と難易度を選択してください。</p>' +
       '<label for="startYears">契約年数</label>' +
       '<select id="startYears">' +
@@ -2420,18 +2607,39 @@ function showStartModal(){
       '</select>' +
       '<label for="startDifficulty">難易度</label>' +
       '<select id="startDifficulty">' +
-        '<option value="normal">NORMAL(東京)</option>' +
-        '<option value="hard" disabled>HARD(東京/中山/京都/阪神) — 準備中</option>' +
-        '<option value="extra" disabled>EXTRA(JRA全10場) — 準備中</option>' +
+        '<option value="normal">NORMAL(多摩)</option>' +
+        '<option value="hard" disabled>HARD(多摩/北総/洛都/西宮) — 準備中</option>' +
+        '<option value="extra" disabled>EXTRA(NHA全10場) — 準備中</option>' +
       '</select>' +
-      '<div class="choices"><button id="startBtn">着任する</button></div>' +
+      '<div class="choices"><button id="startBtn">' + (hasSave ? '新規に開始する' : '着任する') + '</button></div>' +
     '</div></div>';
+  if (hasSave){
+    document.getElementById('continueBtn').addEventListener('click', continueGame);
+  }
   document.getElementById('startBtn').addEventListener('click', function(){
     var years = parseInt(document.getElementById('startYears').value, 10) || 3;
+    if (hasSave && !confirm('既存のセーブデータを上書きして新規に開始します。よろしいですか？')) return;
     closeModal();
+    deleteSaveData();
     newGame(years);
   });
 }
+
+/* ===================== セーブ設定行 ===================== */
+
+document.getElementById('btnExport').addEventListener('click', exportSaveData);
+document.getElementById('btnDeleteSave').addEventListener('click', function(){
+  if (!confirm('セーブデータを削除します。よろしいですか？')) return;
+  deleteSaveData();
+});
+document.getElementById('btnImport').addEventListener('click', function(){
+  document.getElementById('importFile').click();
+});
+document.getElementById('importFile').addEventListener('change', function(ev){
+  var file = ev.target.files && ev.target.files[0];
+  if (file) importSaveDataFromFile(file);
+  ev.target.value = '';
+});
 
 /* ===================== 起動 ===================== */
 
