@@ -82,6 +82,12 @@
   .meter-center { position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: rgba(255,255,255,0.4); }
   .meter-marker { position: absolute; top: -2px; width: 3px; height: 16px; background: #f0c04a; border-radius: 1px; transform: translateX(-50%); }
   .meter-val { font-size: 10px; color: #d9d9d0; text-align: center; margin-top: 2px; }
+  .condBadge { display: inline-block; font-size: 10px; font-weight: bold; border-radius: 3px; padding: 1px 5px; margin-left: 4px; color: #14161c; }
+  .condBadge.cond-yoi { background: #6fbf73; }
+  .condBadge.cond-yaya { background: #b8d24a; }
+  .condBadge.cond-omo { background: #f0c04a; }
+  .condBadge.cond-furyo { background: #d16a5a; color: #fff; }
+  #topbar .condRow { display: flex; gap: 4px; align-items: center; }
 </style>
 </head>
 <body>
@@ -104,6 +110,10 @@
     <div class="item">
       <div class="label">週間天気(月〜日)</div>
       <div id="forecast"></div>
+    </div>
+    <div class="item">
+      <div class="label">馬場状態</div>
+      <div class="value condRow">芝<span id="turfCondBadge" class="condBadge"></span>　ダ<span id="dartCondBadge" class="condBadge"></span></div>
     </div>
     <div class="item">
       <div class="label">予算</div>
@@ -133,9 +143,15 @@
           <div class="stat-val" id="cushionVal">-</div>
         </div>
         <div class="stat-row">
-          <div class="stat-title">含水率</div>
-          <div class="bar-outer"><div class="bar-inner" id="moistBar"></div></div>
-          <div class="stat-val" id="moistVal">-</div>
+          <div class="stat-title">芝 含水率 <span id="turfMoistBadge" class="condBadge"></span></div>
+          <div class="bar-outer"><div class="bar-inner" id="turfMoistBar"></div></div>
+          <div class="stat-val" id="turfMoistVal">-</div>
+          <div class="stat-val" id="drainBoostVal" style="color:#9fe1cb; display:none;"></div>
+        </div>
+        <div class="stat-row">
+          <div class="stat-title">ダート 含水率 <span id="dartMoistBadge" class="condBadge"></span></div>
+          <div class="bar-outer"><div class="bar-inner" id="dartMoistBar"></div></div>
+          <div class="stat-val" id="dartMoistVal">-</div>
         </div>
         <div class="stat-row">
           <div class="stat-title">芝丈</div>
@@ -215,13 +231,18 @@
 
   <div class="panel">
     <div id="actions">
-      <button id="btnWater">散水</button>
+      <button id="btnWaterTurf">散水(芝)</button>
+      <button id="btnWaterDart">散水(ダート)</button>
       <button id="btnMow">芝刈り</button>
       <button id="btnAerate">エアレーション</button>
+      <button id="btnShatter">シャタリング</button>
       <button id="btnFert">肥料</button>
       <button id="btnRepair">目土・補修</button>
       <button id="btnHarrow">ハロー掛け</button>
       <button id="btnSand">砂補充</button>
+      <button id="btnVertidrain">バーチドレン排水</button>
+      <button id="btnRoller">転圧ローラー</button>
+      <button id="btnSandSkim">砂厚調整</button>
       <button id="btnOverseed">オーバーシード</button>
       <button id="btnAntifreeze">凍結防止剤</button>
       <button id="btnSandMix">クッション砂入替</button>
@@ -435,23 +456,49 @@ function rainDaysForWeek(cat){
 }
 // 週次天候の基礎効果(含水率・クッション値)。旧月次値のおよそ1/4。降雨日数の効果は別途加算。
 var TENDENCY_EFFECT_WEEK = {
-  sunny:     { moist:-4.5,  cushion:-0.0625 },
-  unsettled: { moist:-1.5,  cushion:-0.0125 },
-  rainy:     { moist:+5.0,  cushion:+0.05 },
-  hot:       { moist:-6.25, cushion:-0.0875 },
-  cold:      { moist:-2.5,  cushion:-0.0375 }
+  sunny:     { cushion:-0.0625 },
+  unsettled: { cushion:-0.0125 },
+  rainy:     { cushion:+0.05 },
+  hot:       { cushion:-0.0875 },
+  cold:      { cushion:-0.0375 }
 };
+
+// 芝・ダート含水率の日別変動(%pt)。雨1日・晴1日基準値に季節係数を掛ける。
+var TURF_MOIST_RAIN_DAY = 2.2, DART_MOIST_RAIN_DAY = 1.6;
+var TURF_MOIST_SUN_DAY = 1.2, DART_MOIST_SUN_DAY = 1.0;
+function seasonDryMult(m){
+  if (HEATWAVE_MONTHS.indexOf(m)>=0) return 1.4;
+  if (COLDWAVE_MONTHS.indexOf(m)>=0) return 0.7;
+  return 1.0;
+}
+// 実況の1日ぶんの天候カテゴリから含水率変化(%pt)を返す（芝・ダート）
+function dailyMoistDelta(cat, month){
+  var sm = seasonDryMult(month);
+  switch(cat){
+    case 'rainy':     return { turf: TURF_MOIST_RAIN_DAY, dart: DART_MOIST_RAIN_DAY };
+    case 'sunny':     return { turf: -TURF_MOIST_SUN_DAY*sm, dart: -DART_MOIST_SUN_DAY*sm };
+    case 'unsettled': return { turf: -TURF_MOIST_SUN_DAY*sm*0.5, dart: -DART_MOIST_SUN_DAY*sm*0.5 };
+    case 'hot':       return { turf: -TURF_MOIST_SUN_DAY*sm*1.3, dart: -DART_MOIST_SUN_DAY*sm*1.3 };
+    case 'cold':      return { turf: -TURF_MOIST_SUN_DAY*sm*0.5, dart: -DART_MOIST_SUN_DAY*sm*0.5 };
+    default:          return { turf: 0, dart: 0 };
+  }
+}
 
 // 作業アクション定義（ボタン表記・効果プレビュー・実処理が全て参照する単一の定義）
 // コストは週次ベース(旧月次コスト÷1.25)。効果量は週次化(作業機会4倍)に合わせて再調整。
 var ACTIONS = {
-  water:     { key:'water',     label:'散水',       p:2, cost:8,  moistAmt:6,  cushionAmt:0.05 },
+  waterTurf: { key:'waterTurf', label:'散水(芝)',   p:2, cost:10, turfMoistAmt:2.5, cushionAmt:0.05 },
+  waterDart: { key:'waterDart', label:'散水(ダート)', p:2, cost:6, dartMoistAmt:2.0 },
   mow:       { key:'mow',       label:'芝刈り',     p:2, cost:4,  grassAmt:1.0 },
   aerate:    { key:'aerate',    label:'エアレーション', p:3, cost:20, cushionAmt:0.3, rootAmt:2.5, dmgSideAmt:1.5 },
+  shatter:   { key:'shatter',   label:'シャタリング', p:4, cost:45, cushionAmt:0.8, rootAmt:6, dmgSideAmt:6 },
   fert:      { key:'fert',      label:'肥料',       p:2, cost:10, rootAmt:4,  grassAmt:0.6 },
   repair:    { key:'repair',    label:'目土・補修', p:2, cost:15, dmgAmt:18,  rootAmt:1.5 },
-  harrow:    { key:'harrow',    label:'ハロー掛け', p:2, cost:6,  dartDmgAmt:16, sandAmt:0.12 },
+  harrow:    { key:'harrow',    label:'ハロー掛け', p:2, cost:6,  dartDmgAmt:16, sandAmt:0.12, dartMoistDryAmt:1.0 },
   sandfill:  { key:'sandfill',  label:'砂補充',     p:2, cost:12, sandAmt:0.4, sandTon:15 },
+  vertidrain:{ key:'vertidrain',label:'バーチドレン排水', p:2, cost:18, turfMoistDownAmt:3.0, rootAmt:1 },
+  roller:    { key:'roller',    label:'転圧ローラー', p:2, cost:8,  cushionDownAmt:0.4 },
+  sandskim:  { key:'sandskim',  label:'砂厚調整(すき取り)', p:2, cost:10, sandDownAmt:0.5 },
   overseed:  { key:'overseed',  label:'オーバーシード', p:3, cost:32 },
   antifreeze:{ key:'antifreeze',label:'凍結防止剤', p:1, cost:8 },
   sandmix:   { key:'sandmix',   label:'クッション砂入替', p:3, cost:28, sandTon:80, mixShift:0.7, cushionSandAmt:0.5, siltAmt:-40, wearAmt:-40 },
@@ -474,13 +521,13 @@ var EVENT_LABELS = {
 function staffEffectMult(actionKey){
   var m = 1;
   if (!state) return m;
-  if ((actionKey==='water'||actionKey==='harrow') && state.staff.water) m *= 1.3;
+  if ((actionKey==='waterTurf'||actionKey==='waterDart'||actionKey==='harrow') && state.staff.water) m *= 1.3;
   if ((actionKey==='fert'||actionKey==='repair') && state.staff.turf) m *= 1.3;
   return m;
 }
 function staffCritBonus(actionKey){
   if (!state) return 0;
-  if ((actionKey==='water'||actionKey==='harrow') && state.staff.water) return 0.10;
+  if ((actionKey==='waterTurf'||actionKey==='waterDart'||actionKey==='harrow') && state.staff.water) return 0.10;
   return 0;
 }
 
@@ -489,13 +536,18 @@ function previewText(key){
   var mult = staffEffectMult(key);
   var tag = mult>1 ? ' [スタッフ補正+30%]' : '';
   switch(key){
-    case 'water':    return '散水: 含水率+' + (a.moistAmt*mult).toFixed(1) + '（クッション値もわずかに上昇）' + tag;
+    case 'waterTurf': return '散水(芝): 芝含水率+' + (a.turfMoistAmt*mult).toFixed(1) + '%pt（クッション値もわずかに上昇）' + tag;
+    case 'waterDart': return '散水(ダート): ダート含水率+' + (a.dartMoistAmt*mult).toFixed(1) + '%pt' + tag;
     case 'mow':      return '芝刈り: 芝丈-' + a.grassAmt.toFixed(1) + 'cm（時計が出やすくなるが根に負担）';
     case 'aerate':   return 'エアレーション: クッション値+' + a.cushionAmt.toFixed(1) + '・根の健康+' + a.rootAmt + '・全セル傷み+' + a.dmgSideAmt;
+    case 'shatter':  return 'シャタリング: 路盤破砕。クッション値+' + a.cushionAmt.toFixed(1) + '・根+' + a.rootAmt + '・12週間排水性向上／副作用: 芝傷み+' + a.dmgSideAmt + '・4週間時計がかかる（整備月のみ）' + (canShatter()?'':'【現在使用不可：整備月のみ】');
     case 'fert':     return '肥料: 根の健康+' + (a.rootAmt*mult).toFixed(1) + '・芝丈+' + (a.grassAmt*mult).toFixed(1) + 'cm' + tag;
     case 'repair':   return '目土・補修: 選択ゾーンの全セル傷み-' + (a.dmgAmt*mult).toFixed(1) + '・根+' + a.rootAmt + tag;
-    case 'harrow':   return 'ハロー掛け: ダート全セル傷み-' + (a.dartDmgAmt*mult).toFixed(0) + '・砂厚+' + (a.sandAmt*mult).toFixed(1) + tag;
+    case 'harrow':   return 'ハロー掛け: ダート全セル傷み-' + (a.dartDmgAmt*mult).toFixed(0) + '・砂厚+' + (a.sandAmt*mult).toFixed(1) + '・ダート含水率-' + (a.dartMoistDryAmt*mult).toFixed(1) + '%pt(乾燥促進)' + tag;
     case 'sandfill': return '砂補充: 砂厚+' + a.sandAmt.toFixed(1) + '（砂' + a.sandTon + 't消費）' + (sandQuotaOk(a.sandTon)?'':'【現在使用不可：産地枠不足】');
+    case 'vertidrain': return 'バーチドレン排水: 芝含水率-' + a.turfMoistDownAmt.toFixed(1) + '%pt・根+' + a.rootAmt;
+    case 'roller':   return '転圧ローラー: クッション値-' + a.cushionDownAmt.toFixed(1) + '（時計は出るが故障リスク増のハイリスク作業）';
+    case 'sandskim': return '砂厚調整(すき取り): 砂厚-' + a.sandDownAmt.toFixed(1) + 'cm（時計を出したい時用）';
     case 'overseed': return 'オーバーシード: 洋芝を導入し冬の芝を守る（9〜11月のみ・翌年6月頃自然消滅）' + (canOverseed()?'':'【現在使用不可：9〜11月のみ】');
     case 'antifreeze':return '凍結防止剤: 今後4週間、ダート凍結リスクを防止（11〜2月のみ）' + (canAntifreeze()?'':'【現在使用不可：11〜2月のみ】');
     case 'sandmix':   return 'クッション砂入替: 産地構成比を配分へ大きく寄せる・シルト化-40・砂摩耗-40・砂厚+0.5（整備月のみ・砂' + a.sandTon + 't消費）' + (canSandMix()?(sandQuotaOk(a.sandTon)?'':'【現在使用不可：産地枠不足】'):'【現在使用不可：整備月のみ】');
@@ -523,7 +575,11 @@ function newGame(contractYears){
     budget: 200,
     ap: 6,
     apMax: 6,
-    moist: 45,
+    turfMoist: 13,
+    dartMoist: 4,
+    turfCond: '良',
+    dartCond: '良',
+    breakdownRiskBonus: 0,
     grass: 14,
     root: 85,
     cushion: 9.6,
@@ -564,6 +620,8 @@ function newGame(contractYears){
     antifreezeStickyTriggered: false,
     freezeBreakdownBonus: 0,
     dartSticky: 0,
+    drainBoostWeeks: 0,
+    shatterSpeedWeeks: 0,
     sandBlend: { aomori:50, albany:50 },
     sandMix: { aomori:50, albany:50 },
     sandQuota: { aomori:500, albany:500 },
@@ -611,12 +669,23 @@ function genWeekWeather(){
 
 function applyWeekWeather(){
   var eff = TENDENCY_EFFECT_WEEK[state.tendency];
-  state.moist += eff.moist + state.rainDays * 1.5;
   state.cushion += eff.cushion + state.rainDays * 0.02;
-  if (state.heatwaveActive){ state.moist -= 5; }
-  if (state.coldwaveActive){ state.moist -= 2; state.cushion -= 0.025; }
-  state.moist = clamp(state.moist, 10, 95);
+  var turfDelta = 0, dartDelta = 0;
+  state.actualDays.forEach(function(cat){
+    var d = dailyMoistDelta(cat, state.month);
+    var turfD = d.turf;
+    if (state.drainBoostWeeks > 0 && turfD < 0) turfD *= 1.3;
+    turfDelta += turfD;
+    dartDelta += d.dart;
+  });
+  state.turfMoist += turfDelta;
+  state.dartMoist += dartDelta;
+  if (state.heatwaveActive){ state.turfMoist -= 1.0; state.dartMoist -= 0.6; }
+  if (state.coldwaveActive){ state.turfMoist -= 0.5; state.dartMoist -= 0.3; state.cushion -= 0.025; }
+  state.turfMoist = clamp(state.turfMoist, TURF_MOIST_MIN, TURF_MOIST_MAX);
+  state.dartMoist = clamp(state.dartMoist, DART_MOIST_MIN, DART_MOIST_MAX);
   state.cushion = clamp(state.cushion, 7.0, 12.0);
+  updateConds();
 }
 
 function addLog(msg, cls){
@@ -654,6 +723,7 @@ function canOverseed(){ return !!state && [9,10,11].indexOf(state.month)>=0; }
 function canAntifreeze(){ return !!state && [11,12,1,2].indexOf(state.month)>=0; }
 function canSandMix(){ return !!state && isOffMonth(state.month); }
 function canSandWash(){ return !!state && isOffMonth(state.month); }
+function canShatter(){ return !!state && isOffMonth(state.month); }
 
 function sandQuotaOk(tons){
   if (!state) return false;
@@ -678,6 +748,7 @@ function canDoAction(key){
     case 'sandfill':  return sandQuotaOk(a.sandTon);
     case 'sandmix':   return canSandMix() && sandQuotaOk(a.sandTon);
     case 'sandwash':  return canSandWash();
+    case 'shatter':   return canShatter();
     case 'rail':      return canRail();
     case 'railreset': return canRailReset();
     default: return true;
@@ -688,11 +759,12 @@ function canDoAction(key){
 
 function turfSpeedAddends(){
   var arr = [
-    (45 - state.moist) * 0.8,
+    (16 - state.turfMoist) * 3.0,
     (9.8 - state.cushion) * 8,
     (14 - state.grass) * 2
   ];
   if (state.overseed) arr.push(-15);
+  if (state.shatterSpeedWeeks > 0) arr.push(-10);
   return arr;
 }
 function computeTurfSpeed(){
@@ -700,14 +772,17 @@ function computeTurfSpeed(){
   return clamp(sum, -100, 100);
 }
 function dartSpeedAddends(){
-  var moistAdd = (state.moist>=40 && state.moist<=70) ? 15 : (state.moist<40 ? -10 : 0);
   var arr = [
     (9.0 - state.sand) * 25,
-    moistAdd,
     -dartAvgDmg() * 0.4,
     -state.silt * 0.5
   ];
-  if (state.moist > 60){
+  // 適度に湿ると締まって時計が出る(稍重/重)。乾燥(良)は時計かかる。不良は水分過多でパワー馬場化。
+  if (state.dartCond==='稍重' || state.dartCond==='重') arr.push(15);
+  else if (state.dartCond==='良') arr.push(-10);
+  else if (state.dartCond==='不良'){ arr.push(-5); arr.push(-10); }
+  // シルト湿潤・産地特性は稍重以上で発動
+  if (state.dartCond !== '良'){
     arr.push((state.sandMix.albany/100) * 8);   // アルバニーは湿ると速い
     arr.push(-(state.sandMix.aomori/100) * 12); // 青森は湿るとダイレクトにパワー馬場化
   }
@@ -739,19 +814,34 @@ function logOutcome(label, outcome, detail){
   addLog(label + outcomeTag(outcome) + detail, outcomeCls(outcome));
 }
 
-function doWater(){
+function doWaterTurf(){
   if (!state || state.gameOver) return;
-  var a = ACTIONS.water;
+  var a = ACTIONS.waterTurf;
   if (!canAfford(a)) return;
   state.ap -= a.p; state.budget -= actionCost(a);
-  var outcome = rollOutcome('water');
+  var outcome = rollOutcome('waterTurf');
   var om = outcomeMult(outcome);
-  var mult = om * staffEffectMult('water');
-  var amt = a.moistAmt * mult;
-  state.moist = Math.min(95, state.moist + amt);
+  var mult = om * staffEffectMult('waterTurf');
+  var amt = a.turfMoistAmt * mult;
+  state.turfMoist = clamp(state.turfMoist + amt, TURF_MOIST_MIN, TURF_MOIST_MAX);
   state.cushion = clamp(state.cushion + a.cushionAmt*om, 7.0, 12.0);
+  updateConds();
+  logOutcome(a.label, outcome, '芝含水率+' + amt.toFixed(1) + '%pt');
+  render();
+}
+function doWaterDart(){
+  if (!state || state.gameOver) return;
+  var a = ACTIONS.waterDart;
+  if (!canAfford(a)) return;
+  state.ap -= a.p; state.budget -= actionCost(a);
+  var outcome = rollOutcome('waterDart');
+  var om = outcomeMult(outcome);
+  var mult = om * staffEffectMult('waterDart');
+  var amt = a.dartMoistAmt * mult;
+  state.dartMoist = clamp(state.dartMoist + amt, DART_MOIST_MIN, DART_MOIST_MAX);
   state.dartWaterFlag = true;
-  logOutcome(a.label, outcome, '含水率+' + amt.toFixed(1));
+  updateConds();
+  logOutcome(a.label, outcome, 'ダート含水率+' + amt.toFixed(1) + '%pt');
   render();
 }
 function doMow(){
@@ -778,6 +868,24 @@ function doAerate(){
   state.root = Math.min(100, state.root + rootAmt);
   cells.forEach(function(c){ c.dmg = Math.min(100, c.dmg + a.dmgSideAmt); });
   logOutcome(a.label, outcome, 'クッション値+' + cushionAmt.toFixed(1) + '・根+' + rootAmt.toFixed(1) + '（全セル傷み+' + a.dmgSideAmt + '）');
+  render();
+}
+function doShatter(){
+  if (!state || state.gameOver) return;
+  var a = ACTIONS.shatter;
+  if (!canDoAction('shatter')) return;
+  state.ap -= a.p; state.budget -= actionCost(a);
+  var outcome = rollOutcome('shatter');
+  var mult = outcomeMult(outcome);
+  var cushionAmt = a.cushionAmt * mult;
+  var rootAmt = a.rootAmt * mult;
+  state.cushion = Math.min(12.0, state.cushion + cushionAmt);
+  state.root = Math.min(100, state.root + rootAmt);
+  cells.forEach(function(c){ c.dmg = Math.min(100, c.dmg + a.dmgSideAmt); });
+  state.drainBoostWeeks = 12;
+  state.shatterSpeedWeeks = 4;
+  logOutcome(a.label, outcome, 'クッション値+' + cushionAmt.toFixed(1) + '・根+' + rootAmt.toFixed(1) + '（全セル傷み+' + a.dmgSideAmt + '・12週間排水性向上）');
+  addLog('路盤を破砕。しばらく時計がかかる馬場になる');
   render();
 }
 function doFert(){
@@ -823,9 +931,12 @@ function doHarrow(){
   var mult = outcomeMult(outcome) * staffEffectMult('harrow');
   var dmgAmt = a.dartDmgAmt * mult;
   var sandAmt = a.sandAmt * mult;
+  var dryAmt = a.dartMoistDryAmt * mult;
   dartCells.forEach(function(dc){ dc.dmg = Math.max(0, dc.dmg - dmgAmt); });
   state.sand = clamp(state.sand + sandAmt, 7.0, 11.0);
-  logOutcome(a.label, outcome, 'ダート傷み-' + dmgAmt.toFixed(0) + '・砂厚+' + sandAmt.toFixed(1));
+  state.dartMoist = clamp(state.dartMoist - dryAmt, DART_MOIST_MIN, DART_MOIST_MAX);
+  updateConds();
+  logOutcome(a.label, outcome, 'ダート傷み-' + dmgAmt.toFixed(0) + '・砂厚+' + sandAmt.toFixed(1) + '・ダート含水率-' + dryAmt.toFixed(1) + '%pt');
   render();
 }
 function doSandfill(){
@@ -842,6 +953,46 @@ function doSandfill(){
   state.sandMix.aomori = state.sandMix.aomori + (state.sandBlend.aomori - state.sandMix.aomori)*w;
   state.sandMix.albany = 100 - state.sandMix.aomori;
   logOutcome(a.label, outcome, '砂厚+' + sandAmt.toFixed(1) + '（砂' + a.sandTon + 't消費）');
+  render();
+}
+function doVertidrain(){
+  if (!state || state.gameOver) return;
+  var a = ACTIONS.vertidrain;
+  if (!canAfford(a)) return;
+  state.ap -= a.p; state.budget -= actionCost(a);
+  var outcome = rollOutcome('vertidrain');
+  var mult = outcomeMult(outcome);
+  var downAmt = a.turfMoistDownAmt * mult;
+  var rootAmt = a.rootAmt * mult;
+  state.turfMoist = clamp(state.turfMoist - downAmt, TURF_MOIST_MIN, TURF_MOIST_MAX);
+  state.root = Math.min(100, state.root + rootAmt);
+  updateConds();
+  logOutcome(a.label, outcome, '芝含水率-' + downAmt.toFixed(1) + '%pt・根+' + rootAmt.toFixed(1));
+  render();
+}
+function doRoller(){
+  if (!state || state.gameOver) return;
+  var a = ACTIONS.roller;
+  if (!canAfford(a)) return;
+  state.ap -= a.p; state.budget -= actionCost(a);
+  var outcome = rollOutcome('roller');
+  var mult = outcomeMult(outcome);
+  var downAmt = a.cushionDownAmt * mult;
+  state.cushion = clamp(state.cushion - downAmt, 7.0, 12.0);
+  state.breakdownRiskBonus = (state.breakdownRiskBonus||0) + 0.03;
+  logOutcome(a.label, outcome, 'クッション値-' + downAmt.toFixed(1) + '（故障リスクがわずかに上昇）');
+  render();
+}
+function doSandskim(){
+  if (!state || state.gameOver) return;
+  var a = ACTIONS.sandskim;
+  if (!canAfford(a)) return;
+  state.ap -= a.p; state.budget -= actionCost(a);
+  var outcome = rollOutcome('sandskim');
+  var mult = outcomeMult(outcome);
+  var downAmt = a.sandDownAmt * mult;
+  state.sand = clamp(state.sand - downAmt, 7.0, 11.0);
+  logOutcome(a.label, outcome, '砂厚-' + downAmt.toFixed(1));
   render();
 }
 function doOverseed(){
@@ -958,6 +1109,50 @@ function fireStaff(key){
 
 function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
 
+// 含水率レンジ・クランプ境界
+var TURF_MOIST_MIN = 8, TURF_MOIST_MAX = 30;
+var DART_MOIST_MIN = 1.5, DART_MOIST_MAX = 15;
+
+// ヒステリシスによる馬場状態判定(芝: 良/稍重/重/不良)
+function updateTurfCond(){
+  if (!state) return;
+  var m = state.turfMoist;
+  var changed = true;
+  while (changed){
+    changed = false;
+    var c = state.turfCond;
+    if (c==='良' && m>19){ state.turfCond='稍重'; changed=true; }
+    else if (c==='稍重' && m>21){ state.turfCond='重'; changed=true; }
+    else if (c==='重' && m>23){ state.turfCond='不良'; changed=true; }
+    else if (c==='不良' && m<20){ state.turfCond='重'; changed=true; }
+    else if (c==='重' && m<18){ state.turfCond='稍重'; changed=true; }
+    else if (c==='稍重' && m<17){ state.turfCond='良'; changed=true; }
+  }
+}
+// ヒステリシスによる馬場状態判定(ダート: 良/稍重/重/不良、実測を参考にした仮値)
+function updateDartCond(){
+  if (!state) return;
+  var m = state.dartMoist;
+  var changed = true;
+  while (changed){
+    changed = false;
+    var c = state.dartCond;
+    if (c==='良' && m>6){ state.dartCond='稍重'; changed=true; }
+    else if (c==='稍重' && m>9){ state.dartCond='重'; changed=true; }
+    else if (c==='重' && m>12){ state.dartCond='不良'; changed=true; }
+    else if (c==='不良' && m<10){ state.dartCond='重'; changed=true; }
+    else if (c==='重' && m<7.5){ state.dartCond='稍重'; changed=true; }
+    else if (c==='稍重' && m<5){ state.dartCond='良'; changed=true; }
+  }
+}
+function updateConds(){ updateTurfCond(); updateDartCond(); }
+function condBadgeClass(cond){
+  if (cond==='良') return 'cond-yoi';
+  if (cond==='稍重') return 'cond-yaya';
+  if (cond==='重') return 'cond-omo';
+  return 'cond-furyo';
+}
+
 function laneAvg(lane, zoneIndex){
   var list = cells.filter(function(c){ return c.lane===lane && (zoneIndex===undefined || c.zoneIndex===zoneIndex); });
   if (!list.length) return 0;
@@ -977,10 +1172,7 @@ function usedMaxDmg(){
 }
 
 function conditionLabel(){
-  if (state.moist < 45) return '良';
-  if (state.moist < 60) return '稍重';
-  if (state.moist < 75) return '重';
-  return '不良';
+  return '芝' + state.turfCond + ' ／ ダート' + state.dartCond;
 }
 
 function laneWeights(course, innerCell){
@@ -1006,7 +1198,7 @@ function raceWear(weekMult){
       if (!laneWeight) return;
       var c = cellAt(seg, lane);
       var laneCornerMult = cornerMult * (lane==='inner' ? (1+sp.cornerFactor*0.5) : 1);
-      var moistMult = state.moist > 70 ? 1.4 : 1;
+      var moistMult = state.turfCond==='不良' ? 1.4 : (state.turfCond==='重' ? 1.15 : 1);
       var grassMult = state.grass < 10 ? 1.2 : 1;
       var rootMult = state.root < 50 ? 1.3 : 1;
       var rnd = 0.7 + Math.random()*0.6;
@@ -1017,7 +1209,7 @@ function raceWear(weekMult){
 }
 
 function dartRaceWear(weekMult){
-  var dryMult = (!state.dartWaterFlag && state.moist < 40) ? 1.2 : 1.0;
+  var dryMult = (!state.dartWaterFlag && state.dartCond==='良') ? 1.2 : 1.0;
   dartCells.forEach(function(dc){
     var sp = samplePoints[dc.seg];
     var cornerMult = 1 + sp.cornerFactor*0.8;
@@ -1049,21 +1241,24 @@ function checkBreakdown(dayLabel){
   var mDmg = usedMaxDmg();
   var p = 0.035
     + (state.cushion < 8.3 ? 0.03 : 0)
-    + (state.moist > 75 ? 0.025 : 0)
+    + (state.turfCond==='不良' ? 0.05 : 0)
+    + (state.dartCond==='不良' ? 0.03 : 0)
     + (bogAvg > 55 ? 0.025 : 0)
     + (mDmg > 80 ? 0.02 : 0)
     + (state.sand < 8.0 ? 0.02 : 0)
     + (state.sandWear > 60 ? 0.015 : 0)
-    + (state.freezeBreakdownBonus || 0);
+    + (state.freezeBreakdownBonus || 0)
+    + (state.breakdownRiskBonus || 0);
   if (Math.random() < p){
     state.safety = clamp(state.safety - 16, 0, 100);
     state.breakdownCount++;
     addLog(dayLabel + 'で競走中止が発生。硬さ・荒れが要因か。', 'crit');
   }
+  state.breakdownRiskBonus = 0;
 }
 
 function evalClock(){
-  var t = (48 - state.moist)*0.06 + (9.8 - state.cushion)*0.8 + (14 - state.grass)*0.15;
+  var t = (16 - state.turfMoist)*0.35 + (9.8 - state.cushion)*0.8 + (14 - state.grass)*0.15;
   var label, score;
   if (t > 2.2){ label='超高速(批判)'; score=40; }
   else if (t > 1.2){ label='高速'; score=75; }
@@ -1074,7 +1269,7 @@ function evalClock(){
   if (state.sand > 10.0) score -= 10;
   if (state.silt > 50) score -= 8;
   if (state.dartSticky > 0) score -= 10;
-  if (state.moist > 60){
+  if (state.dartCond !== '良'){
     if (state.sandMix.aomori >= 60) score -= 6;  // 青森多めで湿ると時計かかる
     if (state.sandMix.albany >= 60) score += 4;  // アルバニー多めで湿っても時計出る
   }
@@ -1093,6 +1288,7 @@ function evalFairness(){
   var score = clamp(100 - Math.max(0, d-8)*2.2, 0, 100);
   if (dartAvgDmg() > 50) score = clamp(score - 10, 0, 100);
   if (state.silt > 60) score = clamp(score - 8, 0, 100);
+  if (state.turfCond==='不良') score = clamp(score - 5, 0, 100);
   if (Math.abs(d) > 25) addLog('騎手コメント: 「内は掘れて走りにくい」');
   return { score: score, diff: d };
 }
@@ -1210,7 +1406,7 @@ function advanceWeek(){
   var siltCoef = (state.sandMix.aomori/100)*1.5 + (state.sandMix.albany/100)*0.25;
   state.sandWear = clamp(state.sandWear + (raceWeek?1.25:0.5), 0, 100);
   var siltGain = (state.sandWear*0.06 + raceWearAmt*0.5) * siltCoef;
-  if (state.moist > 60) siltGain += (state.sandMix.aomori/100) * 0.75;
+  if (state.dartCond==='重' || state.dartCond==='不良') siltGain += (state.sandMix.aomori/100) * 0.75;
   state.silt = clamp(state.silt + siltGain, 0, 100);
 
   if (raceWeek){
@@ -1287,6 +1483,8 @@ function advanceWeek(){
 
   if (state.dartSticky > 0) state.dartSticky--;
   if (state.sandBlendStrictMonths > 0) state.sandBlendStrictMonths--;
+  if (state.drainBoostWeeks > 0) state.drainBoostWeeks--;
+  if (state.shatterSpeedWeeks > 0) state.shatterSpeedWeeks--;
   state.ap = state.apMax;
   state.weekIndex++;
 
@@ -1482,7 +1680,7 @@ var MISSION_TYPES = ['gaikoku','dirtreform','g1quality','stableops'];
 function buildMission(type){
   var iy = state.year, im = state.month;
   if (type==='gaikoku'){
-    return { id: Math.random(), type:type, desc:'外国産馬の遠征対応: 今月末の芝含水率を50%以上に', deadlineYear:iy, deadlineMonth:im, data:{} };
+    return { id: Math.random(), type:type, desc:'外国産馬の遠征対応: 芝含水率17%以上（稍重相当）を月末まで維持', deadlineYear:iy, deadlineMonth:im, data:{} };
   }
   if (type==='dirtreform'){
     var dl = addMonthsYM(iy, im, 2);
@@ -1530,7 +1728,7 @@ function processMissions(ctx){
   state.missions.forEach(function(m){
     var isDeadline = (state.year===m.deadlineYear && state.month===m.deadlineMonth);
     if (m.type==='gaikoku'){
-      if (isDeadline){ completeMission(m, state.moist>=50); return; }
+      if (isDeadline){ completeMission(m, state.turfMoist>=17); return; }
       remain.push(m); return;
     }
     if (m.type==='dirtreform'){
@@ -1583,16 +1781,20 @@ function resolveTyphoon(mitigate){
     var cost = 19, p = 3;
     if (state.ap < p || state.budget < cost){ return; }
     state.ap -= p; state.budget -= cost;
-    state.moist = clamp(state.moist+20, 10, 95);
+    state.turfMoist = clamp(state.turfMoist+8.0, TURF_MOIST_MIN, TURF_MOIST_MAX);
+    state.dartMoist = clamp(state.dartMoist+5.5, DART_MOIST_MIN, DART_MOIST_MAX);
     state.root = clamp(state.root-5, 0, 100);
     cells.forEach(function(c){ c.dmg = clamp(c.dmg+4, 0, 100); });
     dartCells.forEach(function(c){ c.dmg = clamp(c.dmg+4, 0, 100); });
+    updateConds();
     addLog('台風: 排水対策を実施し、被害を半減できた。');
   } else {
-    state.moist = clamp(state.moist+40, 10, 95);
+    state.turfMoist = clamp(state.turfMoist+16, TURF_MOIST_MIN, TURF_MOIST_MAX);
+    state.dartMoist = clamp(state.dartMoist+11, DART_MOIST_MIN, DART_MOIST_MAX);
     state.root = clamp(state.root-10, 0, 100);
     cells.forEach(function(c){ c.dmg = clamp(c.dmg+8, 0, 100); });
     dartCells.forEach(function(c){ c.dmg = clamp(c.dmg+8, 0, 100); });
+    updateConds();
     addLog('台風: 様子を見た結果、被害が拡大した。', 'fail');
   }
   closeModal();
@@ -1950,8 +2152,32 @@ function render(){
 
   document.getElementById('cushionVal').textContent = state.cushion.toFixed(1);
   document.getElementById('cushionJudge').textContent = cushionJudgeText(state.cushion);
-  document.getElementById('moistVal').textContent = state.moist.toFixed(0) + '%';
-  document.getElementById('moistBar').style.width = clamp(state.moist,0,100) + '%';
+
+  updateConds();
+  var turfPct = clamp((state.turfMoist - TURF_MOIST_MIN) / (TURF_MOIST_MAX - TURF_MOIST_MIN) * 100, 0, 100);
+  var dartPct = clamp((state.dartMoist - DART_MOIST_MIN) / (DART_MOIST_MAX - DART_MOIST_MIN) * 100, 0, 100);
+  document.getElementById('turfMoistVal').textContent = state.turfMoist.toFixed(1) + '%（' + state.turfCond + '）';
+  document.getElementById('turfMoistBar').style.width = turfPct + '%';
+  var drainEl = document.getElementById('drainBoostVal');
+  if (state.drainBoostWeeks > 0){
+    drainEl.textContent = '排水性向上 残' + state.drainBoostWeeks + '週';
+    drainEl.style.display = '';
+  } else {
+    drainEl.style.display = 'none';
+  }
+  document.getElementById('dartMoistVal').textContent = state.dartMoist.toFixed(1) + '%（' + state.dartCond + '）';
+  document.getElementById('dartMoistBar').style.width = dartPct + '%';
+  ['turfMoistBadge','turfCondBadge'].forEach(function(id){
+    var el = document.getElementById(id);
+    el.textContent = state.turfCond;
+    el.className = 'condBadge ' + condBadgeClass(state.turfCond);
+  });
+  ['dartMoistBadge','dartCondBadge'].forEach(function(id){
+    var el = document.getElementById(id);
+    el.textContent = state.dartCond;
+    el.className = 'condBadge ' + condBadgeClass(state.dartCond);
+  });
+
   document.getElementById('grassVal').textContent = state.grass.toFixed(1) + 'cm';
   document.getElementById('rootVal').textContent = state.root.toFixed(0);
   document.getElementById('rootBar').style.width = clamp(state.root,0,100) + '%';
@@ -2059,13 +2285,18 @@ document.getElementById('zoneSelect').addEventListener('change', function(ev){
   render();
 });
 
-document.getElementById('btnWater').addEventListener('click', doWater);
+document.getElementById('btnWaterTurf').addEventListener('click', doWaterTurf);
+document.getElementById('btnWaterDart').addEventListener('click', doWaterDart);
 document.getElementById('btnMow').addEventListener('click', doMow);
 document.getElementById('btnAerate').addEventListener('click', doAerate);
+document.getElementById('btnShatter').addEventListener('click', doShatter);
 document.getElementById('btnFert').addEventListener('click', doFert);
 document.getElementById('btnRepair').addEventListener('click', doRepair);
 document.getElementById('btnHarrow').addEventListener('click', doHarrow);
 document.getElementById('btnSand').addEventListener('click', doSandfill);
+document.getElementById('btnVertidrain').addEventListener('click', doVertidrain);
+document.getElementById('btnRoller').addEventListener('click', doRoller);
+document.getElementById('btnSandSkim').addEventListener('click', doSandskim);
 document.getElementById('btnOverseed').addEventListener('click', doOverseed);
 document.getElementById('btnAntifreeze').addEventListener('click', doAntifreeze);
 document.getElementById('btnSandMix').addEventListener('click', doSandmix);
@@ -2077,8 +2308,9 @@ document.getElementById('advanceBtn').addEventListener('click', advanceWeek);
 /* ===================== 作業ボタン表記・効果プレビュー ===================== */
 
 var ACTION_BUTTONS = {
-  water: 'btnWater', mow: 'btnMow', aerate: 'btnAerate', fert: 'btnFert', repair: 'btnRepair',
+  waterTurf: 'btnWaterTurf', waterDart: 'btnWaterDart', mow: 'btnMow', aerate: 'btnAerate', shatter: 'btnShatter', fert: 'btnFert', repair: 'btnRepair',
   harrow: 'btnHarrow', sandfill: 'btnSand',
+  vertidrain: 'btnVertidrain', roller: 'btnRoller', sandskim: 'btnSandSkim',
   overseed: 'btnOverseed', antifreeze: 'btnAntifreeze', sandmix: 'btnSandMix', sandwash: 'btnSandWash',
   rail: 'btnRail', railreset: 'btnRailReset'
 };
